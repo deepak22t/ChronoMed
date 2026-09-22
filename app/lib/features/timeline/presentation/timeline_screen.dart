@@ -1174,22 +1174,64 @@ class _ConflictPlaceholder extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: ChronoTheme.rose, size: 40),
-            const SizedBox(height: 10),
-            const Text(
-              'Schedule Conflict Detected',
-              style: TextStyle(color: ChronoTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              state.conflict?.clinicalExplanation ?? 'Check the Today tab for conflict details.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: ChronoTheme.textMuted, fontSize: 13),
-            ),
-          ],
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: ChronoTheme.surfaceCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: ChronoTheme.rose.withOpacity(0.4)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: ChronoTheme.roseSurface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: ChronoTheme.rose.withOpacity(0.3)),
+                ),
+                child: const Icon(Icons.shield_outlined,
+                    color: ChronoTheme.rose, size: 22),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Circadian Schedule Infeasible',
+                style: TextStyle(
+                    color: ChronoTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                state.conflict?.clinicalExplanation ??
+                    'Pharmacokinetic separation constraints cannot be satisfied.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: ChronoTheme.textSecondary,
+                    fontSize: 13,
+                    height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: ChronoTheme.surfaceElevated,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Switch to the Today tab to review 1-tap clinical resolutions.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: ChronoTheme.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

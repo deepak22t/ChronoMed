@@ -46,10 +46,7 @@ class _AppShellState extends State<AppShell> {
         backgroundColor: ChronoTheme.obsidian,
         body: SafeArea(
           bottom: false,
-          child: IndexedStack(
-            index: _selectedIndex,
-            children: _screens,
-          ),
+          child: _buildBody(),
         ),
         bottomNavigationBar: _CalmBottomNav(
           currentIndex: _selectedIndex,
@@ -134,12 +131,33 @@ class _AppShellState extends State<AppShell> {
             ),
           ),
           Expanded(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: _screens,
-            ),
+            child: _buildBody(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.02),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey<int>(_selectedIndex),
+        child: _screens[_selectedIndex],
       ),
     );
   }

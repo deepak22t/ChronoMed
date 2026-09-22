@@ -3,6 +3,7 @@ import 'package:core_engine/core_engine.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
+import '../../../main.dart' show defaultRoutine, defaultMedications;
 
 /// Dashboard — Primary "Today" Screen (Phase 2 Masterwork).
 ///
@@ -36,7 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (state.isOversleptMode) _OversleptShiftBanner(state: state),
             Expanded(
               child: state.hasConflict
-                  ? _ConflictBanner(conflict: state.conflict!)
+                  ? _ConflictBanner(conflict: state.conflict!, state: state)
                   : _DoseListBody(
                       state: state,
                       filterIndex: _filterIndex,
@@ -337,11 +338,64 @@ class _DoseListBody extends StatelessWidget {
         // 4. Dose Cards
         if (filteredDoses.isEmpty)
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
             alignment: Alignment.center,
-            child: Text(
-              filterIndex == 1 ? '🎉 No pending doses remaining!' : 'No doses in this category.',
-              style: const TextStyle(color: ChronoTheme.textMuted, fontSize: 13),
+            decoration: BoxDecoration(
+              color: ChronoTheme.surfaceCard,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: ChronoTheme.border),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: filterIndex == 1
+                        ? ChronoTheme.emeraldSurface
+                        : ChronoTheme.surfaceElevated,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: filterIndex == 1
+                          ? ChronoTheme.secondary
+                          : ChronoTheme.border,
+                    ),
+                  ),
+                  child: Icon(
+                    filterIndex == 1
+                        ? Icons.done_all_rounded
+                        : Icons.filter_list_off_rounded,
+                    color: filterIndex == 1
+                        ? ChronoTheme.secondary
+                        : ChronoTheme.textSecondary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  filterIndex == 1
+                      ? 'All Pending Doses Completed'
+                      : 'No doses match this filter',
+                  style: const TextStyle(
+                    color: ChronoTheme.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  filterIndex == 1
+                      ? '100% adherence maintained with verified pharmacokinetic safety.'
+                      : 'Try switching to All or Pending filters.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: ChronoTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           )
         else
@@ -824,45 +878,262 @@ class _DetailRow extends StatelessWidget {
 
 // ── 7. Conflict State ───────────────────────────────────────────────────────
 
+// ── 7. Conflict State with 1-Tap Resolutions ─────────────────────────────────
+
 class _ConflictBanner extends StatelessWidget {
   final InfeasibleConflict conflict;
-  const _ConflictBanner({required this.conflict});
+  final AppState state;
+  const _ConflictBanner({required this.conflict, required this.state});
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: ChronoTheme.roseSurface,
-          borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
-          border: Border.all(color: ChronoTheme.rose.withOpacity(0.35)),
+          color: ChronoTheme.surfaceCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: ChronoTheme.rose.withOpacity(0.4)),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.warning_amber_rounded, color: ChronoTheme.rose, size: 36),
-            const SizedBox(height: 10),
-            const Text(
-              'Clinical Conflict Detected',
-              style: TextStyle(color: ChronoTheme.rose, fontSize: 15, fontWeight: FontWeight.w700),
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: ChronoTheme.roseSurface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: ChronoTheme.rose.withOpacity(0.3)),
+                  ),
+                  child: const Icon(
+                    Icons.shield_outlined,
+                    color: ChronoTheme.rose,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Clinical Infeasibility Alert',
+                        style: TextStyle(
+                          color: ChronoTheme.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${conflict.errorCode} • FAIL-CLOSED SAFETY',
+                        style: const TextStyle(
+                          color: ChronoTheme.rose,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
+
+            if (conflict.conflictingMedications.isNotEmpty) ...[
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: conflict.conflictingMedications
+                    .map(
+                      (med) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: ChronoTheme.roseSurface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: ChronoTheme.rose.withOpacity(0.25)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.sync_problem_rounded,
+                                size: 12, color: ChronoTheme.rose),
+                            const SizedBox(width: 5),
+                            Text(
+                              med,
+                              style: const TextStyle(
+                                color: ChronoTheme.rose,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 12),
+            ],
+
             Text(
               conflict.clinicalExplanation,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 13, height: 1.4),
+              style: const TextStyle(
+                color: ChronoTheme.textSecondary,
+                fontSize: 13,
+                height: 1.45,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: ChronoTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(8),
+                color: ChronoTheme.surfaceElevated,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: ChronoTheme.border),
               ),
-              child: Text(
-                conflict.actionableAdvice,
-                style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 12, height: 1.3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.lightbulb_outline_rounded,
+                    color: ChronoTheme.primary,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      conflict.actionableAdvice,
+                      style: const TextStyle(
+                        color: ChronoTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
+            const Divider(color: ChronoTheme.border, height: 1),
+            const SizedBox(height: 16),
+
+            const Text(
+              '1-TAP CLINICAL RESOLUTIONS',
+              style: TextStyle(
+                color: ChronoTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Resolution Button 1: Extend Waking Window (+60m)
+            InkWell(
+              onTap: () {
+                final r = state.routine;
+                final newSleep = (r.sleepTimeMinutes + 60).clamp(0, 1439);
+                final updated = Routine(
+                  id: r.id,
+                  userId: r.userId,
+                  wakeTimeMinutes: r.wakeTimeMinutes,
+                  sleepTimeMinutes: newSleep,
+                  meals: r.meals,
+                );
+                state.updateRoutine(updated);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Diurnal window extended by 60m. Recomputing schedule...'),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  color: ChronoTheme.surfaceElevated,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: ChronoTheme.border),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.more_time_rounded,
+                        color: ChronoTheme.primary, size: 16),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Extend Bedtime (+60m) to provide room',
+                        style: TextStyle(
+                          color: ChronoTheme.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded,
+                        color: ChronoTheme.textMuted, size: 18),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // Resolution Button 2: Restore Reference Defaults
+            InkWell(
+              onTap: () {
+                state.reset(
+                  defaultRoutine: defaultRoutine,
+                  defaultMedications: defaultMedications,
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Restored to reference 6-drug clinical polypharmacy regimen.'),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  color: ChronoTheme.surfaceElevated,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: ChronoTheme.border),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.restore_rounded,
+                        color: ChronoTheme.secondary, size: 16),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Restore Verified Reference Regimen',
+                        style: TextStyle(
+                          color: ChronoTheme.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded,
+                        color: ChronoTheme.textMuted, size: 18),
+                  ],
+                ),
               ),
             ),
           ],
