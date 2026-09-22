@@ -1,0 +1,128 @@
+[
+  {
+    "rxcui": "6185",
+    "name": "Levothyroxine Sodium",
+    "brandNames": ["Synthroid", "Eltroxin", "Levoxyl", "Thyronorm"],
+    "requiresEmptyStomach": true,
+    "emptyStomachPreMealMinutes": 60,
+    "emptyStomachPostMealMinutes": 120,
+    "requiresFood": false,
+    "circadianPreference": "MORNING",
+    "chelationConflicts": [
+      { "target": "CALCIUM", "gapMinutes": 240, "rationale": "Insoluble chelate reduces absorption by up to 80%" },
+      { "target": "IRON", "gapMinutes": 240, "rationale": "Iron forms insoluble complex with thyroxine" },
+      { "target": "MAGNESIUM", "gapMinutes": 240, "rationale": "Antacids/Magnesium inhibit intestinal uptake" },
+      { "target": "ALUMINUM", "gapMinutes": 240, "rationale": "Sucralfate/Aluminum antacids bind drug" }
+    ]
+  },
+  {
+    "rxcui": "6809",
+    "name": "Metformin Hydrochloride",
+    "brandNames": ["Glucophage", "Fortamet", "Glycomet"],
+    "requiresEmptyStomach": false,
+    "emptyStomachPreMealMinutes": 60,
+    "emptyStomachPostMealMinutes": 120,
+    "requiresFood": true,
+    "circadianPreference": "ANY",
+    "chelationConflicts": []
+  },
+  {
+    "rxcui": "7646",
+    "name": "Omeprazole",
+    "brandNames": ["Prilosec", "Omez", "Losec"],
+    "requiresEmptyStomach": true,
+    "emptyStomachPreMealMinutes": 60,
+    "emptyStomachPostMealMinutes": 120,
+    "requiresFood": false,
+    "circadianPreference": "MORNING",
+    "chelationConflicts": []
+  },
+  {
+    "rxcui": "83367",
+    "name": "Atorvastatin Calcium",
+    "brandNames": ["Lipitor", "Atorva", "Storvas"],
+    "requiresEmptyStomach": false,
+    "emptyStomachPreMealMinutes": 60,
+    "emptyStomachPostMealMinutes": 120,
+    "requiresFood": false,
+    "circadianPreference": "BEDTIME",
+    "chelationConflicts": []
+  },
+  {
+    "rxcui": "1886",
+    "name": "Calcium Carbonate",
+    "brandNames": ["Caltrate", "Tums", "Shelcal"],
+    "requiresEmptyStomach": false,
+    "emptyStomachPreMealMinutes": 60,
+    "emptyStomachPostMealMinutes": 120,
+    "requiresFood": true,
+    "circadianPreference": "ANY",
+    "chelationConflicts": [
+      { "target": "Levothyroxine", "gapMinutes": 240, "rationale": "Chelation blocks thyroid absorption" },
+      { "target": "Iron Supplement", "gapMinutes": 240, "rationale": "Competes directly for divalent metal transporter 1 (DMT1)" },
+      { "target": "Ciprofloxacin", "gapMinutes": 240, "rationale": "Forms inactive chelate complex with fluoroquinolone" }
+    ]
+  },
+  {
+    "rxcui": "4282",
+    "name": "Ferrous Sulfate (Iron)",
+    "brandNames": ["Feosol", "Slow FE", "Autrin"],
+    "requiresEmptyStomach": true,
+    "emptyStomachPreMealMinutes": 60,
+    "emptyStomachPostMealMinutes": 120,
+    "requiresFood": false,
+    "circadianPreference": "AFTERNOON",
+    "chelationConflicts": [
+      { "target": "Levothyroxine", "gapMinutes": 240, "rationale": "Chelation blocks thyroid absorption" },
+      { "target": "Calcium Carbonate", "gapMinutes": 240, "rationale": "Calcium blocks intestinal iron transport" }
+    ]
+  },
+  {
+    "rxcui": "2551",
+    "name": "Ciprofloxacin",
+    "brandNames": ["Cipro", "Ciplox"],
+    "requiresEmptyStomach": true,
+    "emptyStomachPreMealMinutes": 60,
+    "emptyStomachPostMealMinutes": 120,
+    "requiresFood": false,
+    "circadianPreference": "ANY",
+    "chelationConflicts": [
+      { "target": "CALCIUM", "gapMinutes": 240, "rationale": "Cation binding destroys antibiotic efficacy" },
+      { "target": "IRON", "gapMinutes": 240, "rationale": "Iron binds quinolone ring" },
+      { "target": "MAGNESIUM", "gapMinutes": 240, "rationale": "Antacids neutralize bioavailability" }
+    ]
+  },
+  {
+    "rxcui": "8640",
+    "name": "Prednisone",
+    "brandNames": ["Deltasone", "Omnacortil", "Predmet"],
+    "requiresEmptyStomach": false,
+    "emptyStomachPreMealMinutes": 60,
+    "emptyStomachPostMealMinutes": 120,
+    "requiresFood": true,
+    "circadianPreference": "MORNING",
+    "chelationConflicts": []
+  },
+  {
+    "rxcui": "17767",
+    "name": "Amlodipine Besylate",
+    "brandNames": ["Norvasc", "Amlong", "Stamlo"],
+    "requiresEmptyStomach": false,
+    "emptyStomachPreMealMinutes": 60,
+    "emptyStomachPostMealMinutes": 120,
+    "requiresFood": false,
+    "circadianPreference": "MORNING",
+    "chelationConflicts": []
+  },
+  {
+    "rxcui": "5640",
+    "name": "Ibuprofen",
+    "brandNames": ["Advil", "Motrin", "Brufen", "Combiflam"],
+    "requiresEmptyStomach": false,
+    "emptyStomachPreMealMinutes": 60,
+    "emptyStomachPostMealMinutes": 120,
+    "requiresFood": true,
+    "circadianPreference": "ANY",
+    "chelationConflicts": []
+  }
+]
