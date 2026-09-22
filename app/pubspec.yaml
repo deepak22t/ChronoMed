@@ -1,0 +1,26 @@
+name: chronomed_app
+description: Clinical-Grade Polypharmacy & Nutrition Living Timeline Flutter Client.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.24.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  core_engine:
+    path: ../core_engine
+  clinical_data:
+    path: ../clinical_data
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/top_50_drugs.json
