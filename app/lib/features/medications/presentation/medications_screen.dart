@@ -3,6 +3,7 @@ import 'package:core_engine/core_engine.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
+import '../../settings/presentation/physician_summary_sheet.dart';
 import 'add_medication_dialog.dart';
 
 enum _MedFilter { all, emptyStomach, withFood, cationConflict }
@@ -62,6 +63,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
             _CabinetHeader(
               totalCount: allMeds.length,
               onAddPressed: () => _showAddDialog(context, state),
+              onExportPressed: () => PhysicianSummarySheet.show(context, state),
             ),
 
             // Search & Filter Section
@@ -220,10 +222,12 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
 class _CabinetHeader extends StatelessWidget {
   final int totalCount;
   final VoidCallback onAddPressed;
+  final VoidCallback onExportPressed;
 
   const _CabinetHeader({
     required this.totalCount,
     required this.onAddPressed,
+    required this.onExportPressed,
   });
 
   @override
@@ -259,6 +263,36 @@ class _CabinetHeader extends StatelessWidget {
             ],
           ),
           const Spacer(),
+          // EHR Summary Button
+          InkWell(
+            onTap: onExportPressed,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: ChronoTheme.primary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.description_outlined, size: 12, color: ChronoTheme.primary),
+                  SizedBox(width: 4),
+                  Text(
+                    'EHR',
+                    style: TextStyle(
+                      color: ChronoTheme.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(

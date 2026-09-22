@@ -3,6 +3,7 @@ import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import '../../../main.dart' show defaultRoutine, defaultMedications;
+import 'physician_summary_sheet.dart';
 
 /// Phase 6: Elevated Clinical Settings & Engine Telemetry Screen
 ///
@@ -56,7 +57,20 @@ class SettingsScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // Section 3: Zero-Hallucination Clinical Mandate
+                  // Section 3: Physician Care Handoff
+                  const _SectionHeader(
+                    title: 'PHYSICIAN CARE HANDOFF',
+                    subtitle: 'Clinical summary for doctors & pharmacists',
+                    icon: Icons.assignment_outlined,
+                  ),
+                  const SizedBox(height: 10),
+                  _PhysicianExportCard(
+                    onTap: () => PhysicianSummarySheet.show(context, state),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Section 4: Zero-Hallucination Clinical Mandate
                   const _SectionHeader(
                     title: 'CLINICAL SAFETY MANDATE',
                     subtitle: 'Deterministic guarantees vs AI hallucination',
@@ -896,3 +910,118 @@ class _SpecRow extends StatelessWidget {
     );
   }
 }
+
+// ── Physician Export Card ─────────────────────────────────────────────────────
+
+class _PhysicianExportCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _PhysicianExportCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: ChronoTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ChronoTheme.border),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: ChronoTheme.cyanSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
+                  ),
+                  child: const Icon(
+                    Icons.description_outlined,
+                    color: ChronoTheme.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Physician Regimen Summary',
+                              style: TextStyle(
+                                color: ChronoTheme.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: ChronoTheme.primary.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'EHR Ready',
+                              style: TextStyle(
+                                color: ChronoTheme.primary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Generate an EHR-ready, structured Markdown report with circadian anchors, prandial rules, chelation buffers, and zero-hallucination verification.',
+                        style: TextStyle(
+                          color: ChronoTheme.textSecondary,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Row(
+                        children: [
+                          Text(
+                            'View & Export Report',
+                            style: TextStyle(
+                              color: ChronoTheme.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 14,
+                            color: ChronoTheme.primary,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
