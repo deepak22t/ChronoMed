@@ -40,6 +40,10 @@ class AppState extends ChangeNotifier {
   DailyScheduleResult get scheduleResult => _scheduleResult;
   int get currentMinuteOfDay => _currentMinuteOfDay;
   bool get isOversleptMode => _isOversleptMode;
+  bool get isRecalibrated => _scheduleResult is RecalibratedSchedule;
+
+  RecalibratedSchedule? get recalibratedSchedule =>
+      _scheduleResult is RecalibratedSchedule ? _scheduleResult as RecalibratedSchedule : null;
 
   /// All doses from the current schedule result (empty if infeasible).
   List<ScheduledDose> get doses => switch (_scheduleResult) {
@@ -88,19 +92,30 @@ class AppState extends ChangeNotifier {
 
   /// Mark a dose as taken at the current simulated time.
   void markDoseTaken(String medicationId) {
+    markDoseTakenAt(medicationId, _currentMinuteOfDay);
+  }
+
+  /// Mark a dose as taken at an explicit minute of the day and dynamically recalibrate.
+  void markDoseTakenAt(String medicationId, int minuteOfDay) {
     if (_scheduleResult is! OptimalSchedule && _scheduleResult is! RecalibratedSchedule) return;
 
     final currentDoses = doses;
     final recalibrated = DynamicRecalibrator.recalibrateForLateDose(
       existingDoses: currentDoses,
       delayedMedicationId: medicationId,
-      actualTakenMinute: _currentMinuteOfDay,
+      actualTakenMinute: minuteOfDay,
       medications: _medications,
       currentRoutine: _routine,
     );
 
     _scheduleResult = recalibrated;
     notifyListeners();
+  }
+
+  /// Reset any dynamic recalibration back to the pristine optimal baseline.
+  void resetRecalibration() {
+    _isOversleptMode = false;
+    _solve();
   }
 
   /// Add a new medication and recompute the schedule.

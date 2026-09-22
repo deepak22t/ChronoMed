@@ -3,6 +3,7 @@ import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import '../../../main.dart' show defaultRoutine, defaultMedications;
+import '../../dashboard/presentation/missed_dose_protocol_sheet.dart';
 import '../../medications/presentation/interaction_matrix_sheet.dart';
 import 'physician_summary_sheet.dart';
 
@@ -53,6 +54,8 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   _OversleptSimulatorCard(state: state),
+                  const SizedBox(height: 10),
+                  _MissedDoseAdvisorSettingsCard(state: state),
                   const SizedBox(height: 10),
                   _ResetRegimenCard(onReset: () => _confirmReset(context, state)),
 
@@ -1152,5 +1155,127 @@ class _SafetyMatrixSettingsCard extends StatelessWidget {
     );
   }
 }
+
+// ── Missed-Dose Advisor Settings Card ─────────────────────────────────────────
+
+class _MissedDoseAdvisorSettingsCard extends StatelessWidget {
+  final AppState state;
+  const _MissedDoseAdvisorSettingsCard({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: ChronoTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ChronoTheme.border),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            if (state.doses.isNotEmpty) {
+              MissedDoseProtocolSheet.show(context, state.doses.first, state);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No active scheduled doses in regimen.')),
+              );
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: ChronoTheme.cyanSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
+                  ),
+                  child: const Icon(
+                    Icons.history_toggle_off_rounded,
+                    color: ChronoTheme.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Missed-Dose Protocols',
+                              style: TextStyle(
+                                color: ChronoTheme.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: ChronoTheme.primary.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'FDA Guidance',
+                              style: TextStyle(
+                                color: ChronoTheme.primary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Inspect pharmacokinetic grace windows, double-dose contraindication warnings, and cascading shift logic for your medications.',
+                        style: TextStyle(
+                          color: ChronoTheme.textSecondary,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Row(
+                        children: [
+                          Text(
+                            'Open Protocol Advisor',
+                            style: TextStyle(
+                              color: ChronoTheme.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 14,
+                            color: ChronoTheme.primary,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 

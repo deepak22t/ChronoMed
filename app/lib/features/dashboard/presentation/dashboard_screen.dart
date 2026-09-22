@@ -4,6 +4,7 @@ import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import '../../../main.dart' show defaultRoutine, defaultMedications;
+import 'missed_dose_protocol_sheet.dart';
 
 /// Dashboard — Primary "Today" Screen (Phase 2 Masterwork).
 ///
@@ -34,7 +35,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           children: [
             _DashboardHeader(state: state),
-            if (state.isOversleptMode) _OversleptShiftBanner(state: state),
+            if (state.isRecalibrated) _DynamicRecalibrationBanner(state: state),
             Expanded(
               child: state.hasConflict
                   ? _ConflictBanner(conflict: state.conflict!, state: state)
@@ -190,42 +191,94 @@ class _AdherenceDial extends StatelessWidget {
   }
 }
 
-// ── 2. Overslept Schedule Shift Alert Banner ──────────────────────────────────
+// ── 2. Dynamic Schedule Recalibration Banner ──────────────────────────────────
 
-class _OversleptShiftBanner extends StatelessWidget {
+class _DynamicRecalibrationBanner extends StatefulWidget {
   final AppState state;
-  const _OversleptShiftBanner({required this.state});
+  const _DynamicRecalibrationBanner({required this.state});
+
+  @override
+  State<_DynamicRecalibrationBanner> createState() => _DynamicRecalibrationBannerState();
+}
+
+class _DynamicRecalibrationBannerState extends State<_DynamicRecalibrationBanner> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
+    final rec = widget.state.recalibratedSchedule;
+    final reason = rec?.shiftReason ?? 'Schedule dynamically shifted to preserve clinical buffers.';
+    final shifts = rec?.shiftsSummary ?? const <String>[];
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: const BoxDecoration(
         color: ChronoTheme.cyanSurface,
         border: Border(bottom: BorderSide(color: ChronoTheme.border)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, size: 14, color: ChronoTheme.primary),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'Schedule shifted by +2h 15m to preserve clinical meal buffers.',
-              style: TextStyle(color: ChronoTheme.primary, fontSize: 11.5, fontWeight: FontWeight.w500),
-            ),
-          ),
-          InkWell(
-            onTap: () => state.resetOverslept(),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: ChronoTheme.surfaceElevated,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
+          Row(
+            children: [
+              const Icon(Icons.sync_rounded, size: 14, color: ChronoTheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  reason,
+                  style: const TextStyle(
+                    color: ChronoTheme.primary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: _expanded ? null : 1,
+                  overflow: _expanded ? null : TextOverflow.ellipsis,
+                ),
               ),
-              child: const Text('Reset', style: TextStyle(color: ChronoTheme.textPrimary, fontSize: 11, fontWeight: FontWeight.w700)),
-            ),
+              if (shifts.isNotEmpty)
+                InkWell(
+                  onTap: () => setState(() => _expanded = !_expanded),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Icon(
+                      _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                      size: 16,
+                      color: ChronoTheme.primary,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 4),
+              InkWell(
+                onTap: () => widget.state.resetRecalibration(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: ChronoTheme.surfaceElevated,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
+                  ),
+                  child: const Text(
+                    'Reset',
+                    style: TextStyle(
+                      color: ChronoTheme.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
+          if (_expanded && shifts.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            ...shifts.map((s) => Padding(
+                  padding: const EdgeInsets.only(left: 22, bottom: 3),
+                  child: Text(
+                    '• $s',
+                    style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 10.5),
+                  ),
+                )),
+          ],
         ],
       ),
     );
@@ -810,8 +863,30 @@ class _TodayDoseDetailSheet extends StatelessWidget {
             title: 'Food & Nutrition Buffer',
             text: dose.safeFoodWindowNote,
           ),
-          const SizedBox(height: 20),
-          if (!isTaken)
+          const SizedBox(height: 16),
+          // Missed-Dose Protocol action
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                MissedDoseProtocolSheet.show(context, dose, state);
+              },
+              icon: const Icon(Icons.history_toggle_off_rounded, size: 16),
+              label: const Text(
+                'Missed or Delayed? View Protocol',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: ChronoTheme.primary,
+                side: BorderSide(color: ChronoTheme.primary.withOpacity(0.35)),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+          if (!isTaken) ...[
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -829,6 +904,7 @@ class _TodayDoseDetailSheet extends StatelessWidget {
                 ),
               ),
             ),
+          ],
         ],
       ),
     );

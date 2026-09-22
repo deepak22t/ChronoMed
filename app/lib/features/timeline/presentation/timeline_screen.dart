@@ -3,6 +3,7 @@ import 'package:core_engine/core_engine.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
+import '../../dashboard/presentation/missed_dose_protocol_sheet.dart';
 import 'timeline_painter.dart';
 
 /// Clinical Timeline Screen (Phase 3 Masterwork).
@@ -40,6 +41,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
               viewMode: _viewMode,
               onViewModeChanged: (mode) => setState(() => _viewMode = mode),
             ),
+            if (state.isRecalibrated) _TimelineRecalibrationBanner(state: state),
             Expanded(
               child: state.hasConflict
                   ? _ConflictPlaceholder(state: state)
@@ -53,6 +55,63 @@ class _TimelineScreenState extends State<TimelineScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Timeline Recalibration Banner ─────────────────────────────────────────────
+
+class _TimelineRecalibrationBanner extends StatelessWidget {
+  final AppState state;
+  const _TimelineRecalibrationBanner({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final reason = state.recalibratedSchedule?.shiftReason ?? 'Timeline dynamically shifted';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: const BoxDecoration(
+        color: ChronoTheme.cyanSurface,
+        border: Border(bottom: BorderSide(color: ChronoTheme.border)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.sync_rounded, size: 14, color: ChronoTheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              reason,
+              style: const TextStyle(
+                color: ChronoTheme.primary,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          InkWell(
+            onTap: () => state.resetRecalibration(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: ChronoTheme.surfaceElevated,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
+              ),
+              child: const Text(
+                'Reset',
+                style: TextStyle(
+                  color: ChronoTheme.textPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1099,8 +1158,30 @@ class _DoseDetailSheet extends StatelessWidget {
             title: 'Food & Nutrition Buffer',
             text: dose.safeFoodWindowNote,
           ),
-          const SizedBox(height: 20),
-          if (!isTaken)
+          const SizedBox(height: 16),
+          // Missed-Dose Protocol action
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                MissedDoseProtocolSheet.show(context, dose, state);
+              },
+              icon: const Icon(Icons.history_toggle_off_rounded, size: 16),
+              label: const Text(
+                'Missed or Delayed? View Protocol',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: ChronoTheme.primary,
+                side: BorderSide(color: ChronoTheme.primary.withOpacity(0.35)),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+          if (!isTaken) ...[
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -1118,6 +1199,7 @@ class _DoseDetailSheet extends StatelessWidget {
                 ),
               ),
             ),
+          ],
         ],
       ),
     );
