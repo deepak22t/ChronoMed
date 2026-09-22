@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:core_engine/core_engine.dart';
 
-/// 120 FPS CustomPainter rendering the 24-Hour Living Timeline.
-/// Mobile-optimized with a 48px compact gutter and full-width touchable dose cards.
+/// High-Definition 24-Hour Circadian Map Painter.
+/// Features collision-free pill cards, glowing 'NOW' indicator,
+/// circadian meal gradients, and crisp dark-mode typography.
 class TimelinePainter extends CustomPainter {
   final Routine routine;
   final List<ScheduledDose> doses;
   final int currentMinuteOfDay;
   final String? selectedDoseId;
 
-  static const double _canvasHeight = 1600.0;
-  static const double _gutterWidth = 48.0;
+  static const double _canvasHeight = 1680.0;
+  static const double _gutterWidth = 54.0;
   static const double _heightPerMinute = _canvasHeight / 1440.0;
 
   TimelinePainter({
@@ -30,10 +31,10 @@ class TimelinePainter extends CustomPainter {
     _drawNowIndicator(canvas, size);
   }
 
-  // ── 1. Hour Grid ───────────────────────────────────────────────────────
+  // ── 1. Hour Grid ───────────────────────────────────────────────────────────
   void _drawHourGrid(Canvas canvas, Size size) {
     final gridPaint = Paint()
-      ..color = const Color(0xFF1E293B)
+      ..color = const Color(0xFF1E293B).withOpacity(0.7)
       ..strokeWidth = 1.0;
 
     final tp = TextPainter(textDirection: TextDirection.ltr);
@@ -42,20 +43,22 @@ class TimelinePainter extends CustomPainter {
       final y = h * 60 * _heightPerMinute;
       canvas.drawLine(Offset(_gutterWidth, y), Offset(size.width, y), gridPaint);
 
+      final isMajor = h % 3 == 0;
       final label = h == 0
-          ? '12A'
+          ? '12 AM'
           : h < 12
-              ? '${h}A'
+              ? '$h AM'
               : h == 12
-                  ? '12P'
-                  : '${h - 12}P';
+                  ? '12 PM'
+                  : '${h - 12} PM';
 
       tp.text = TextSpan(
         text: label,
-        style: const TextStyle(
-          color: Color(0xFF475569),
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
+        style: TextStyle(
+          color: isMajor ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+          fontSize: isMajor ? 10 : 9,
+          fontWeight: isMajor ? FontWeight.w700 : FontWeight.w500,
+          fontFamily: 'monospace',
         ),
       );
       tp.layout();
@@ -63,27 +66,29 @@ class TimelinePainter extends CustomPainter {
     }
   }
 
-  // ── 2. Sleep Bands ─────────────────────────────────────────────────────
+  // ── 2. Sleep Bands ─────────────────────────────────────────────────────────
   void _drawSleepBands(Canvas canvas, Size size) {
-    final sleepPaint = Paint()..color = const Color(0xFF818CF8).withOpacity(0.07);
+    final sleepPaint = Paint()..color = const Color(0xFF6366F1).withOpacity(0.08);
     final wakeY = routine.wakeTimeMinutes * _heightPerMinute;
     final sleepY = routine.sleepTimeMinutes * _heightPerMinute;
 
+    // Pre-wake sleep
     canvas.drawRect(Rect.fromLTRB(_gutterWidth, 0, size.width, wakeY), sleepPaint);
+    // Post-bedtime sleep
     canvas.drawRect(Rect.fromLTRB(_gutterWidth, sleepY, size.width, _canvasHeight), sleepPaint);
 
-    _drawBandLabel(canvas, 'SLEEP', _gutterWidth + 8, wakeY / 2 - 6, const Color(0xFF818CF8));
-    _drawBandLabel(canvas, 'SLEEP', _gutterWidth + 8, sleepY + (_canvasHeight - sleepY) / 2 - 6, const Color(0xFF818CF8));
+    _drawBandBadge(canvas, '🌙 SLEEP / REST', _gutterWidth + 10, wakeY / 2 - 10, const Color(0xFF818CF8));
+    _drawBandBadge(canvas, '🌙 SLEEP / REST', _gutterWidth + 10, sleepY + (_canvasHeight - sleepY) / 2 - 10, const Color(0xFF818CF8));
   }
 
-  // ── 3. Fasting Hazard Bands ────────────────────────────────────────────
+  // ── 3. Fasting Hazard Bands ────────────────────────────────────────────────
   void _drawFastingBands(Canvas canvas, Size size) {
     const preBuf = ClinicalBuffers.emptyStomachPreMealBufferMinutes;
     const postBuf = ClinicalBuffers.emptyStomachPostMealBufferMinutes;
 
-    final fastPaint = Paint()..color = const Color(0xFFF43F5E).withOpacity(0.06);
-    final fastBorderPaint = Paint()
-      ..color = const Color(0xFFF43F5E).withOpacity(0.2)
+    final fastFill = Paint()..color = const Color(0xFFF43F5E).withOpacity(0.06);
+    final fastBorder = Paint()
+      ..color = const Color(0xFFF43F5E).withOpacity(0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -91,180 +96,249 @@ class TimelinePainter extends CustomPainter {
       final preStart = (meal.startTimeMinutes - preBuf) * _heightPerMinute;
       final preEnd = meal.startTimeMinutes * _heightPerMinute;
       if (preStart >= 0) {
-        final r = Rect.fromLTRB(_gutterWidth, preStart, size.width - 4, preEnd);
-        canvas.drawRect(r, fastPaint);
-        canvas.drawRect(r, fastBorderPaint);
-        _drawBandLabel(canvas, 'FASTING', _gutterWidth + 6, preStart + 3, const Color(0xFFF43F5E));
+        final r = Rect.fromLTRB(_gutterWidth + 2, preStart, size.width - 6, preEnd);
+        final rRect = RRect.fromRectAndRadius(r, const Radius.circular(6));
+        canvas.drawRRect(rRect, fastFill);
+        canvas.drawRRect(rRect, fastBorder);
+        _drawBandBadge(canvas, '⚠️ FASTING BUFFER (Pre-${meal.displayName})', _gutterWidth + 10, preStart + 4, const Color(0xFFF43F5E));
       }
 
       final postStart = meal.endTimeMinutes * _heightPerMinute;
       final postEnd = (meal.endTimeMinutes + postBuf) * _heightPerMinute;
       if (postEnd <= _canvasHeight) {
-        final r = Rect.fromLTRB(_gutterWidth, postStart, size.width - 4, postEnd);
-        canvas.drawRect(r, fastPaint);
-        canvas.drawRect(r, fastBorderPaint);
-        _drawBandLabel(canvas, 'FASTING', _gutterWidth + 6, postStart + 3, const Color(0xFFF43F5E));
+        final r = Rect.fromLTRB(_gutterWidth + 2, postStart, size.width - 6, postEnd);
+        final rRect = RRect.fromRectAndRadius(r, const Radius.circular(6));
+        canvas.drawRRect(rRect, fastFill);
+        canvas.drawRRect(rRect, fastBorder);
+        _drawBandBadge(canvas, '⚠️ FASTING BUFFER (Post-${meal.displayName})', _gutterWidth + 10, postStart + 4, const Color(0xFFF43F5E));
       }
     }
   }
 
-  // ── 4. Meal Bands ──────────────────────────────────────────────────────
+  // ── 4. Meal Bands ──────────────────────────────────────────────────────────
   void _drawMealBands(Canvas canvas, Size size) {
-    final mealFill = Paint()..color = const Color(0xFF10B981).withOpacity(0.12);
+    final mealFill = Paint()..color = const Color(0xFF10B981).withOpacity(0.14);
     final mealBorder = Paint()
-      ..color = const Color(0xFF10B981).withOpacity(0.4)
+      ..color = const Color(0xFF10B981).withOpacity(0.5)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-
-    final tp = TextPainter(textDirection: TextDirection.ltr);
+      ..strokeWidth = 1.5;
 
     for (final meal in routine.meals) {
       final top = meal.startTimeMinutes * _heightPerMinute;
       final bottom = meal.endTimeMinutes * _heightPerMinute;
-      final rect = Rect.fromLTRB(_gutterWidth, top, size.width - 4, bottom);
-      final rRect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
+      final rect = Rect.fromLTRB(_gutterWidth + 2, top, size.width - 6, bottom);
+      final rRect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
 
       canvas.drawRRect(rRect, mealFill);
       canvas.drawRRect(rRect, mealBorder);
 
-      tp.text = TextSpan(
-        text: '🍽 ${meal.displayName.toUpperCase()}',
-        style: const TextStyle(
-          color: Color(0xFF6EE7B7),
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-        ),
+      final icon = meal.type == MealType.breakfast
+          ? '🍳'
+          : meal.type == MealType.lunch
+              ? '🥗'
+              : '🍲';
+
+      _drawBandBadge(
+        canvas,
+        '$icon ${meal.displayName.toUpperCase()} (${meal.startTimeMinutes ~/ 60}:${(meal.startTimeMinutes % 60).toString().padLeft(2, '0')})',
+        _gutterWidth + 10,
+        top + 6,
+        const Color(0xFF34D399),
       );
-      tp.layout();
-      tp.paint(canvas, Offset(_gutterWidth + 8, top + 4));
     }
   }
 
-  // ── 5. Dose Cards (Mobile Sized) ───────────────────────────────────────
+  // ── 5. Dose Cards (Collision-Resistant & Polished) ──────────────────────────
   void _drawDoses(Canvas canvas, Size size) {
     final tp = TextPainter(textDirection: TextDirection.ltr);
 
-    for (final dose in doses) {
-      final y = dose.scheduledMinute * _heightPerMinute;
+    // Track vertical positions to prevent visual collision
+    double lastCardBottom = -100.0;
+
+    for (var i = 0; i < doses.length; i++) {
+      final dose = doses[i];
+      final targetY = dose.scheduledMinute * _heightPerMinute;
       final isTaken = dose.status == DoseStatus.taken;
       final isSelected = dose.id == selectedDoseId;
 
-      final dotColor = isTaken
+      final color = isTaken
           ? const Color(0xFF10B981)
-          : dose.status == DoseStatus.missed
-              ? const Color(0xFFF43F5E)
-              : dose.status == DoseStatus.due
-                  ? const Color(0xFF22D3EE)
+          : dose.status == DoseStatus.due
+              ? const Color(0xFF22D3EE)
+              : dose.status == DoseStatus.missed
+                  ? const Color(0xFFF43F5E)
                   : const Color(0xFFF59E0B);
 
-      // Selection glow
+      // Node point on timeline track
+      canvas.drawCircle(Offset(_gutterWidth + 12, targetY), 6, Paint()..color = color);
+      canvas.drawCircle(
+        Offset(_gutterWidth + 12, targetY),
+        3,
+        Paint()..color = const Color(0xFF07090E),
+      );
+
+      // Card positioning (prevent collision)
+      var cardY = targetY - 18;
+      if (cardY < lastCardBottom + 4) {
+        cardY = lastCardBottom + 4;
+      }
+      const cardHeight = 42.0;
+      lastCardBottom = cardY + cardHeight;
+
+      const cardLeft = _gutterWidth + 26;
+      final cardWidth = (size.width - cardLeft - 10).clamp(140.0, 520.0);
+      final cardRect = Rect.fromLTWH(cardLeft, cardY, cardWidth, cardHeight);
+      final rRect = RRect.fromRectAndRadius(cardRect, const Radius.circular(10));
+
+      // Glow if selected
       if (isSelected) {
         final glowPaint = Paint()
-          ..color = dotColor.withOpacity(0.3)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-        canvas.drawCircle(Offset(_gutterWidth + 12, y), 10, glowPaint);
+          ..color = color.withOpacity(0.4)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+        canvas.drawRRect(rRect, glowPaint);
       }
 
-      // Dot indicator
-      canvas.drawCircle(Offset(_gutterWidth + 12, y), 5, Paint()..color = dotColor);
-
-      // Card background
-      final cardLeft = _gutterWidth + 24;
-      final cardWidth = (size.width - cardLeft - 8).clamp(120.0, 500.0);
-      final cardRect = Rect.fromLTWH(cardLeft, y - 18, cardWidth, 36);
-      final rRect = RRect.fromRectAndRadius(cardRect, const Radius.circular(8));
-
+      // Card surface
       canvas.drawRRect(
         rRect,
         Paint()
           ..color = isTaken
-              ? const Color(0xFF141A28)
+              ? const Color(0xFF111827)
               : isSelected
-                  ? dotColor.withOpacity(0.15)
-                  : const Color(0xFF141B2B),
+                  ? color.withOpacity(0.18)
+                  : const Color(0xFF161F30),
       );
+
+      // Card border
       canvas.drawRRect(
         rRect,
         Paint()
-          ..color = isTaken ? const Color(0xFF1E293B) : dotColor.withOpacity(0.4)
+          ..color = isTaken
+              ? const Color(0xFF1F2937)
+              : isSelected
+                  ? color
+                  : color.withOpacity(0.5)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.0,
+          ..strokeWidth = isSelected ? 1.8 : 1.2,
       );
 
-      // Time + name text
+      // Text inside card: Time pill + Drug Name
       tp.text = TextSpan(
         children: [
           TextSpan(
             text: '${dose.formattedTime}  ',
             style: TextStyle(
-              color: isTaken ? const Color(0xFF475569) : dotColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 10,
+              color: isTaken ? const Color(0xFF64748B) : color,
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
               fontFamily: 'monospace',
             ),
           ),
           TextSpan(
-            text: '${dose.medicationName} (${dose.dosage})',
+            text: '${dose.medicationName} ',
             style: TextStyle(
-              color: isTaken ? const Color(0xFF475569) : const Color(0xFFF1F5F9),
-              fontWeight: FontWeight.w600,
-              fontSize: 11,
+              color: isTaken ? const Color(0xFF64748B) : Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
               decoration: isTaken ? TextDecoration.lineThrough : null,
+            ),
+          ),
+          TextSpan(
+            text: '(${dose.dosage})',
+            style: TextStyle(
+              color: isTaken ? const Color(0xFF475569) : const Color(0xFF94A3B8),
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
       );
       tp.layout(maxWidth: cardWidth - 16);
-      tp.paint(canvas, Offset(cardRect.left + 8, cardRect.top + 10));
+      tp.paint(canvas, Offset(cardRect.left + 10, cardRect.top + 7));
+
+      // Second row instruction note
+      final tpSub = TextPainter(
+        text: TextSpan(
+          text: isTaken ? '✓ Taken' : dose.clinicalInstruction,
+          style: TextStyle(
+            color: isTaken ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: cardWidth - 16);
+      tpSub.paint(canvas, Offset(cardRect.left + 10, cardRect.top + 23));
     }
   }
 
-  // ── 6. Now Indicator ───────────────────────────────────────────────────
+  // ── 6. Now Indicator (Glowing Beaming Line) ─────────────────────────────────
   void _drawNowIndicator(Canvas canvas, Size size) {
     if (currentMinuteOfDay < 0 || currentMinuteOfDay >= 1440) return;
 
     final y = currentMinuteOfDay * _heightPerMinute;
 
+    // Glowing line
     canvas.drawLine(
-      Offset(_gutterWidth - 4, y),
+      Offset(_gutterWidth - 8, y),
       Offset(size.width, y),
       Paint()
-        ..color = const Color(0xFFF43F5E)
+        ..color = const Color(0xFF22D3EE).withOpacity(0.5)
+        ..strokeWidth = 3.0
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+
+    // Sharp line
+    canvas.drawLine(
+      Offset(_gutterWidth - 8, y),
+      Offset(size.width, y),
+      Paint()
+        ..color = const Color(0xFF22D3EE)
         ..strokeWidth = 1.5,
     );
 
+    // Glowing pulsing dot
     canvas.drawCircle(
-      Offset(_gutterWidth - 4, y),
-      4,
-      Paint()..color = const Color(0xFFF43F5E),
+      Offset(_gutterWidth - 8, y),
+      6,
+      Paint()
+        ..color = const Color(0xFF22D3EE).withOpacity(0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+    canvas.drawCircle(
+      Offset(_gutterWidth - 8, y),
+      3.5,
+      Paint()..color = const Color(0xFF22D3EE),
     );
 
-    final tp = TextPainter(textDirection: TextDirection.ltr)
-      ..text = const TextSpan(
+    final tp = TextPainter(
+      text: const TextSpan(
         text: 'NOW',
         style: TextStyle(
-          color: Color(0xFFF43F5E),
-          fontSize: 8,
+          color: Color(0xFF22D3EE),
+          fontSize: 8.5,
           fontWeight: FontWeight.w900,
-          letterSpacing: 0.5,
+          letterSpacing: 0.8,
         ),
-      )
-      ..layout();
-    tp.paint(canvas, Offset(_gutterWidth - 4, y - 12));
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(_gutterWidth - 8, y - 13));
   }
 
-  void _drawBandLabel(Canvas canvas, String text, double x, double y, Color color) {
-    final tp = TextPainter(textDirection: TextDirection.ltr)
-      ..text = TextSpan(
+  void _drawBandBadge(Canvas canvas, String text, double x, double y, Color color) {
+    final tp = TextPainter(
+      text: TextSpan(
         text: text,
         style: TextStyle(
-          color: color.withOpacity(0.6),
-          fontSize: 8,
+          color: color,
+          fontSize: 8.5,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
+          letterSpacing: 0.3,
         ),
-      )
-      ..layout();
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
     tp.paint(canvas, Offset(x, y));
   }
 

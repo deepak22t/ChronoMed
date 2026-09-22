@@ -137,8 +137,14 @@ class AppState extends ChangeNotifier {
       medications: _medications,
       targetDate: 'TODAY',
     );
-
     notifyListeners();
+  }
+
+  /// Reset overslept mode back to baseline routine.
+  void resetOverslept() {
+    _isOversleptMode = false;
+    _currentMinuteOfDay = _nowInMinutes();
+    _solve();
   }
 
   /// Reset everything to the initial default state.
