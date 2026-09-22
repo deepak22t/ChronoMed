@@ -5,12 +5,14 @@ import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import 'timeline_painter.dart';
 
-/// Clinical Timeline Screen (Calm Health Aesthetic).
+/// Clinical Timeline Screen (Phase 3 Masterwork).
 ///
-/// Features a quiet, restorative dual-mode experience:
-/// 1. [ChronoFeedView]: A clean chronological vertical stream merging
-///    medications, meals, fasting buffers, and sleep with zero cartoon emojis.
-/// 2. [CircadianMapView]: A soothing 24-hour visual map in Soft Glacial Blue & Muted Sage.
+/// Features:
+/// 1. Dual-Mode Switcher (Schedule Feed vs. 24h Circadian Map).
+/// 2. Event Filters (All Events / Medications Only / Meals & Rest).
+/// 3. Connected Hairline Vertical Spine with Zero Cartoon Emojis.
+/// 4. Tactile Checkmark Button with Instant State Updates.
+/// 5. Collision-Resistant 24h Visualizer Canvas.
 class TimelineScreen extends StatefulWidget {
   const TimelineScreen({super.key});
 
@@ -19,8 +21,10 @@ class TimelineScreen extends StatefulWidget {
 }
 
 class _TimelineScreenState extends State<TimelineScreen> {
-  // 0 = Chrono Feed (Cards), 1 = 24h Circadian Map
+  // 0 = Schedule Feed, 1 = 24h Map
   int _viewMode = 0;
+  // 0 = All, 1 = Meds Only, 2 = Meals/Sleep Only
+  int _filterIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +44,11 @@ class _TimelineScreenState extends State<TimelineScreen> {
               child: state.hasConflict
                   ? _ConflictPlaceholder(state: state)
                   : _viewMode == 0
-                      ? _ChronoFeedView(state: state)
+                      ? _ChronoFeedView(
+                          state: state,
+                          filterIndex: _filterIndex,
+                          onFilterChanged: (idx) => setState(() => _filterIndex = idx),
+                        )
                       : _CircadianMapView(state: state),
             ),
           ],
@@ -50,7 +58,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 }
 
-// ── 1. Top Header & Segmented Switcher ───────────────────────────────────────
+// ── 1. Top Header & Segmented Capsule ─────────────────────────────────────────
 
 class _TimelineHeader extends StatelessWidget {
   final AppState state;
@@ -127,7 +135,6 @@ class _TimelineHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              // Time Shift Toggle
               if (state.isOversleptMode)
                 OutlinedButton.icon(
                   onPressed: () => state.resetOverslept(),
@@ -158,7 +165,7 @@ class _TimelineHeader extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Gentle Segmented Capsule
+          // Segmented Capsule
           Container(
             height: 34,
             padding: const EdgeInsets.all(2),
@@ -264,26 +271,67 @@ class _SegmentTab extends StatelessWidget {
   }
 }
 
-// ── 2. Primary Chrono Feed View (Zero Emojis, Quiet Aesthetic) ───────────────
+// ── 2. Primary Chrono Feed View (With Event Filter Pills) ─────────────────────
 
 class _ChronoFeedView extends StatelessWidget {
   final AppState state;
-  const _ChronoFeedView({required this.state});
+  final int filterIndex;
+  final ValueChanged<int> onFilterChanged;
+
+  const _ChronoFeedView({
+    required this.state,
+    required this.filterIndex,
+    required this.onFilterChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     final nextDose = state.nextDose;
-    final events = _buildTimelineEvents(state);
+    final allEvents = _buildTimelineEvents(state);
+
+    final filteredEvents = switch (filterIndex) {
+      1 => allEvents.where((e) => e.type == _EventType.dose || e.type == _EventType.nowMarker).toList(),
+      2 => allEvents.where((e) => e.type != _EventType.dose).toList(),
+      _ => allEvents,
+    };
+
+    final medCount = state.doses.length;
+    final routineCount = state.routine.meals.length + 2;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       children: [
-        if (nextDose != null)
+        if (nextDose != null && filterIndex != 2)
           _NextDoseHeroCard(dose: nextDose, state: state)
         else if (state.doses.isNotEmpty && state.adherenceRatio >= 1.0)
           const _AllCompletedCard(),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
+
+        // Event Category Filter Pills
+        Row(
+          children: [
+            _TimelineFilterPill(
+              label: 'All (${allEvents.length - 1})',
+              isSelected: filterIndex == 0,
+              onTap: () => onFilterChanged(0),
+            ),
+            const SizedBox(width: 8),
+            _TimelineFilterPill(
+              label: 'Meds ($medCount)',
+              isSelected: filterIndex == 1,
+              onTap: () => onFilterChanged(1),
+            ),
+            const SizedBox(width: 8),
+            _TimelineFilterPill(
+              label: 'Routine ($routineCount)',
+              isSelected: filterIndex == 2,
+              onTap: () => onFilterChanged(2),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 14),
 
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -309,7 +357,7 @@ class _ChronoFeedView extends StatelessWidget {
         ),
         const SizedBox(height: 10),
 
-        ...events.map((e) => _TimelineItemWidget(event: e, state: state)),
+        ...filteredEvents.map((e) => _TimelineItemWidget(event: e, state: state)),
       ],
     );
   }
@@ -397,6 +445,45 @@ class _ChronoFeedView extends StatelessWidget {
     }
 
     return finalEvents;
+  }
+}
+
+class _TimelineFilterPill extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _TimelineFilterPill({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? ChronoTheme.cyanSurface : ChronoTheme.surfaceElevated,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? ChronoTheme.primary.withOpacity(0.4) : ChronoTheme.border,
+            width: 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? ChronoTheme.primary : ChronoTheme.textMuted,
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
   }
 }
 
