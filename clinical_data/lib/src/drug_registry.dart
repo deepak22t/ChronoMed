@@ -95,5 +95,29 @@ class DrugRegistry {
     return null;
   }
 
+  /// Returns all indexed medications as a list.
+  List<Medication> get allMedications => _byGenericName.values.toList();
+
+  /// Searches and returns up to [limit] matching medications.
+  List<Medication> search(String query, {int limit = 6}) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return _byGenericName.values.take(limit).toList();
+
+    final results = <Medication>{};
+    for (final entry in _byGenericName.entries) {
+      if (entry.key.contains(q)) {
+        results.add(entry.value);
+        if (results.length >= limit) return results.toList();
+      }
+    }
+    for (final entry in _byBrandName.entries) {
+      if (entry.key.contains(q)) {
+        results.add(entry.value);
+        if (results.length >= limit) return results.toList();
+      }
+    }
+    return results.toList();
+  }
+
   int get totalIndexed => _byGenericName.length;
 }

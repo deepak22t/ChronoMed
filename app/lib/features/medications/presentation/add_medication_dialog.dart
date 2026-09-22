@@ -4,7 +4,10 @@ import 'package:core_engine/core_engine.dart';
 import 'package:clinical_data/clinical_data.dart';
 import '../../../core/theme/chrono_theme.dart';
 
-/// Mobile BottomSheet for adding a new medication.
+/// Elevated Clinical BottomSheet for adding a new medication to the regimen.
+///
+/// Features live FDA catalog autocomplete, interactive circadian window selector,
+/// and verified pharmacokinetic constraints in Calm Health styling.
 class AddMedicationSheet extends StatefulWidget {
   final void Function(Medication) onAdd;
   const AddMedicationSheet({super.key, required this.onAdd});
@@ -15,17 +18,19 @@ class AddMedicationSheet extends StatefulWidget {
 
 class _AddMedicationSheetState extends State<AddMedicationSheet> {
   final _searchController = TextEditingController();
-  final _dosageController = TextEditingController();
   final _nameController = TextEditingController();
+  final _dosageController = TextEditingController();
 
   DrugRegistry? _registry;
   bool _registryLoading = true;
 
   Medication? _selectedDrug;
-  CircadianWindow _circadian = CircadianWindow.anyTime;
+  CircadianWindow _circadian = CircadianWindow.morning;
   bool _requiresEmptyStomach = false;
   bool _requiresFood = false;
   bool _hasCationConflict = false;
+
+  List<Medication> _suggestions = [];
 
   @override
   void initState() {
@@ -41,6 +46,7 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
         setState(() {
           _registry = reg;
           _registryLoading = false;
+          _suggestions = reg.search('', limit: 5);
         });
       }
     } catch (_) {
@@ -49,17 +55,35 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
   }
 
   void _onSearchChanged(String query) {
-    if (query.length < 2 || _registry == null) return;
-    final found = _registry!.findByQuery(query);
-    if (found == null) return;
+    if (_registry == null) return;
     setState(() {
-      _selectedDrug = found;
-      _nameController.text = found.name;
-      _dosageController.text = found.dosage;
-      _requiresEmptyStomach = found.rules.requiresEmptyStomach;
-      _requiresFood = found.rules.requiresFood;
-      _circadian = found.rules.circadianPreference;
-      _hasCationConflict = found.rules.separationConstraints.isNotEmpty;
+      _suggestions = _registry!.search(query, limit: 6);
+    });
+  }
+
+  void _selectDrug(Medication drug) {
+    setState(() {
+      _selectedDrug = drug;
+      _nameController.text = drug.name;
+      // Default recommended clinical dosages if standard
+      if (drug.name.contains('Levothyroxine')) {
+        _dosageController.text = '50 mcg';
+      } else if (drug.name.contains('Metformin')) {
+        _dosageController.text = '500 mg';
+      } else if (drug.name.contains('Omeprazole')) {
+        _dosageController.text = '20 mg';
+      } else if (drug.name.contains('Atorvastatin')) {
+        _dosageController.text = '20 mg';
+      } else if (drug.name.contains('Calcium')) {
+        _dosageController.text = '600 mg';
+      } else {
+        _dosageController.text = drug.dosage;
+      }
+
+      _requiresEmptyStomach = drug.rules.requiresEmptyStomach;
+      _requiresFood = drug.rules.requiresFood;
+      _circadian = drug.rules.circadianPreference;
+      _hasCationConflict = drug.rules.separationConstraints.isNotEmpty;
     });
   }
 
@@ -68,9 +92,14 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
     final dosage = _dosageController.text.trim();
     if (name.isEmpty || dosage.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter medication name and dosage.'),
-          backgroundColor: ChronoTheme.rose,
+        SnackBar(
+          content: const Text('Please enter medication name and dosage.'),
+          backgroundColor: ChronoTheme.surfaceElevated,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: ChronoTheme.border),
+          ),
         ),
       );
       return;
@@ -111,177 +140,510 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, 24 + bottomInset),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: ChronoTheme.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.88,
+      ),
+      decoration: const BoxDecoration(
+        color: ChronoTheme.surfaceCard,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 8),
+            child: Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: ChronoTheme.border,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 16),
-            // Title
-            Row(
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
               children: [
-                const Icon(Icons.medication_rounded, color: ChronoTheme.cyan, size: 22),
-                const SizedBox(width: 8),
-                const Text(
-                  'Add Medication',
-                  style: TextStyle(
-                    color: ChronoTheme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: ChronoTheme.surfaceElevated,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: ChronoTheme.border),
                   ),
+                  child: const Icon(
+                    Icons.medication_outlined,
+                    color: ChronoTheme.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Add Prescription',
+                      style: TextStyle(
+                        color: ChronoTheme.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      'Clinical pharmacokinetic parameters',
+                      style: TextStyle(
+                        color: ChronoTheme.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: ChronoTheme.textMuted, size: 20),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: ChronoTheme.textSecondary,
+                    size: 20,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+          ),
+          const Divider(color: ChronoTheme.border, height: 1),
 
-            // Search Bar
-            TextFormField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              style: const TextStyle(color: ChronoTheme.textPrimary, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'Search 50 FDA drugs (e.g. Metformin)...',
-                prefixIcon: const Icon(Icons.search_rounded, color: ChronoTheme.textMuted, size: 18),
-                suffixIcon: _registryLoading
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: ChronoTheme.cyan)),
-                      )
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          // Scrollable Form
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 24 + bottomInset),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // FDA Catalog Search
+                  _buildSectionHeader('SEARCH FDA CATALOG', Icons.search_rounded),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _searchController,
+                    onChanged: _onSearchChanged,
+                    style: const TextStyle(
+                      color: ChronoTheme.textPrimary,
+                      fontSize: 14,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. Levothyroxine, Metformin, Omeprazole...',
+                      hintStyle: const TextStyle(
+                        color: ChronoTheme.textMuted,
+                        fontSize: 13,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: ChronoTheme.textSecondary,
+                        size: 18,
+                      ),
+                      suffixIcon: _registryLoading
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: ChronoTheme.primary,
+                                ),
+                              ),
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: ChronoTheme.surfaceElevated,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: ChronoTheme.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: ChronoTheme.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: ChronoTheme.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // FDA Quick Suggestion Chips
+                  if (_suggestions.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: _suggestions.map((drug) {
+                        final isSelected = _selectedDrug?.name == drug.name;
+                        return InkWell(
+                          onTap: () => _selectDrug(drug),
+                          borderRadius: BorderRadius.circular(20),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? ChronoTheme.cyanSurface
+                                  : ChronoTheme.surfaceElevated,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected
+                                    ? ChronoTheme.primary
+                                    : ChronoTheme.border,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isSelected
+                                      ? Icons.check_circle_rounded
+                                      : Icons.add_rounded,
+                                  color: isSelected
+                                      ? ChronoTheme.primary
+                                      : ChronoTheme.textSecondary,
+                                  size: 13,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  drug.name.split(' ').first,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? ChronoTheme.textPrimary
+                                        : ChronoTheme.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+
+                  if (_selectedDrug != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ChronoTheme.emeraldSurface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: ChronoTheme.secondary.withOpacity(0.35),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.verified_outlined,
+                            color: ChronoTheme.secondary,
+                            size: 16,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Verified FDA rules auto-configured for this drug.',
+                              style: TextStyle(
+                                color: ChronoTheme.secondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 18),
+
+                  // Medication Name & Dosage Inputs
+                  _buildSectionHeader('MEDICATION DETAILS', Icons.edit_note_rounded),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _nameController,
+                    style: const TextStyle(
+                      color: ChronoTheme.textPrimary,
+                      fontSize: 14,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Medication Name',
+                      labelStyle: const TextStyle(
+                        color: ChronoTheme.textSecondary,
+                        fontSize: 13,
+                      ),
+                      hintText: 'e.g. Levothyroxine',
+                      filled: true,
+                      fillColor: ChronoTheme.surfaceElevated,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: ChronoTheme.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: ChronoTheme.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: ChronoTheme.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _dosageController,
+                    style: const TextStyle(
+                      color: ChronoTheme.textPrimary,
+                      fontSize: 14,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Dosage / Strength',
+                      labelStyle: const TextStyle(
+                        color: ChronoTheme.textSecondary,
+                        fontSize: 13,
+                      ),
+                      hintText: 'e.g. 50 mcg, 500 mg, 1 tablet',
+                      filled: true,
+                      fillColor: ChronoTheme.surfaceElevated,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: ChronoTheme.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: ChronoTheme.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: ChronoTheme.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // Preferred Circadian Window
+                  _buildSectionHeader(
+                    'CIRCADIAN TIMING WINDOW',
+                    Icons.access_time_rounded,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildCircadianSegmented(),
+
+                  const SizedBox(height: 18),
+
+                  // Pharmacokinetic & Prandial Constraints
+                  _buildSectionHeader(
+                    'PHARMACOKINETIC CONSTRAINTS',
+                    Icons.science_outlined,
+                  ),
+                  const SizedBox(height: 8),
+                  _RuleToggleCard(
+                    icon: Icons.no_meals_outlined,
+                    label: 'Empty Stomach Required',
+                    subtitle: '60m before or 120m after any meal',
+                    active: _requiresEmptyStomach && !_requiresFood,
+                    activeColor: ChronoTheme.primary,
+                    onToggle: () {
+                      setState(() {
+                        _requiresEmptyStomach = !_requiresEmptyStomach;
+                        if (_requiresEmptyStomach) _requiresFood = false;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _RuleToggleCard(
+                    icon: Icons.restaurant_outlined,
+                    label: 'Requires Food Co-administration',
+                    subtitle: 'Must be ingested during or right after a meal',
+                    active: _requiresFood && !_requiresEmptyStomach,
+                    activeColor: ChronoTheme.secondary,
+                    onToggle: () {
+                      setState(() {
+                        _requiresFood = !_requiresFood;
+                        if (_requiresFood) _requiresEmptyStomach = false;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _RuleToggleCard(
+                    icon: Icons.sync_problem_rounded,
+                    label: 'Polyvalent Cation Chelation',
+                    subtitle: 'Requires ≥ 4h gap from Calcium & Iron',
+                    active: _hasCationConflict,
+                    activeColor: ChronoTheme.rose,
+                    onToggle: () {
+                      setState(() {
+                        _hasCationConflict = !_hasCationConflict;
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Submit Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ChronoTheme.primary,
+                        foregroundColor: ChronoTheme.obsidian,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.check_rounded, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Save to Daily Regimen',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            if (_selectedDrug != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: ChronoTheme.emerald.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: ChronoTheme.emerald.withOpacity(0.3)),
+  Widget _buildSectionHeader(String text, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: ChronoTheme.textSecondary),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: const TextStyle(
+            color: ChronoTheme.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.7,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCircadianSegmented() {
+    final windows = [
+      (CircadianWindow.morning, 'Morning', Icons.wb_sunny_outlined),
+      (CircadianWindow.afternoon, 'Afternoon', Icons.wb_twilight_outlined),
+      (CircadianWindow.evening, 'Evening', Icons.nightlight_outlined),
+      (CircadianWindow.bedtime, 'Bedtime', Icons.bedtime_outlined),
+      (CircadianWindow.anyTime, 'Anytime', Icons.schedule_outlined),
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: windows.map((item) {
+          final isSelected = _circadian == item.$1;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: InkWell(
+              onTap: () => setState(() => _circadian = item.$1),
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
-                child: const Row(
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? ChronoTheme.cyanSurface
+                      : ChronoTheme.surfaceElevated,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected
+                        ? ChronoTheme.primary
+                        : ChronoTheme.border,
+                    width: isSelected ? 1.5 : 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_circle_rounded, color: ChronoTheme.emerald, size: 14),
-                    SizedBox(width: 6),
-                    Text('Auto-filled from drug library', style: TextStyle(color: ChronoTheme.emerald, fontSize: 11, fontWeight: FontWeight.w600)),
+                    Icon(
+                      item.$3,
+                      size: 15,
+                      color: isSelected
+                          ? ChronoTheme.primary
+                          : ChronoTheme.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      item.$2,
+                      style: TextStyle(
+                        color: isSelected
+                            ? ChronoTheme.textPrimary
+                            : ChronoTheme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
-
-            const SizedBox(height: 12),
-            // Med Name
-            const _Label('Medication Name *'),
-            const SizedBox(height: 6),
-            TextFormField(
-              controller: _nameController,
-              style: const TextStyle(color: ChronoTheme.textPrimary, fontSize: 14),
-              decoration: const InputDecoration(
-                hintText: 'e.g. Metformin',
-                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
             ),
-            const SizedBox(height: 10),
-
-            // Dosage
-            const _Label('Dosage *'),
-            const SizedBox(height: 6),
-            TextFormField(
-              controller: _dosageController,
-              style: const TextStyle(color: ChronoTheme.textPrimary, fontSize: 14),
-              decoration: const InputDecoration(
-                hintText: 'e.g. 500 mg, 50 mcg',
-                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Toggles
-            const _Label('Clinical Timing Rules'),
-            const SizedBox(height: 8),
-            _MobileRuleSwitch(
-              label: 'Empty Stomach',
-              subtitle: '60m before / 120m after meals',
-              color: ChronoTheme.rose,
-              value: _requiresEmptyStomach && !_requiresFood,
-              onChanged: (v) => setState(() {
-                _requiresEmptyStomach = v;
-                if (v) _requiresFood = false;
-              }),
-            ),
-            const SizedBox(height: 6),
-            _MobileRuleSwitch(
-              label: 'Requires Food',
-              subtitle: 'Must be taken with a meal',
-              color: ChronoTheme.emerald,
-              value: _requiresFood && !_requiresEmptyStomach,
-              onChanged: (v) => setState(() {
-                _requiresFood = v;
-                if (v) _requiresEmptyStomach = false;
-              }),
-            ),
-            const SizedBox(height: 6),
-            _MobileRuleSwitch(
-              label: 'Cation Conflict (Ca²⁺/Fe²⁺)',
-              subtitle: '≥ 4h gap from Calcium & Iron',
-              color: ChronoTheme.amber,
-              value: _hasCationConflict,
-              onChanged: (v) => setState(() => _hasCationConflict = v),
-            ),
-            const SizedBox(height: 12),
-
-            // Circadian Window
-            const _Label('Preferred Time of Day'),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<CircadianWindow>(
-              value: _circadian,
-              dropdownColor: ChronoTheme.surfaceElevated,
-              style: const TextStyle(color: ChronoTheme.textPrimary, fontSize: 13),
-              decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10)),
-              items: CircadianWindow.values
-                  .map((w) => DropdownMenuItem(value: w, child: Text(w.displayName)))
-                  .toList(),
-              onChanged: (v) => setState(() => _circadian = v!),
-            ),
-            const SizedBox(height: 20),
-
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _submit,
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Add to Daily Regimen', style: TextStyle(fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ChronoTheme.cyan,
-                  foregroundColor: ChronoTheme.obsidian,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ],
-        ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -295,72 +657,107 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
   }
 }
 
-class _Label extends StatelessWidget {
-  final String text;
-  const _Label(this.text);
+// ── Interactive Rule Toggle Card ──────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) => Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          color: ChronoTheme.textDim,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.8,
-        ),
-      );
-}
-
-class _MobileRuleSwitch extends StatelessWidget {
+class _RuleToggleCard extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String subtitle;
-  final Color color;
-  final bool value;
-  final ValueChanged<bool> onChanged;
+  final bool active;
+  final Color activeColor;
+  final VoidCallback onToggle;
 
-  const _MobileRuleSwitch({
+  const _RuleToggleCard({
+    required this.icon,
     required this.label,
     required this.subtitle,
-    required this.color,
-    required this.value,
-    required this.onChanged,
+    required this.active,
+    required this.activeColor,
+    required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: value ? color.withOpacity(0.08) : ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: value ? color.withOpacity(0.35) : ChronoTheme.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: value ? ChronoTheme.textPrimary : ChronoTheme.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(subtitle, style: const TextStyle(color: ChronoTheme.textDim, fontSize: 10)),
-              ],
+    return InkWell(
+      onTap: onToggle,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: active
+              ? activeColor.withOpacity(0.08)
+              : ChronoTheme.surfaceElevated,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: active ? activeColor.withOpacity(0.4) : ChronoTheme.border,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: active
+                    ? activeColor.withOpacity(0.15)
+                    : ChronoTheme.surfaceCard,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: active ? activeColor : ChronoTheme.textSecondary,
+                size: 17,
+              ),
             ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: color,
-            inactiveThumbColor: ChronoTheme.textDim,
-            inactiveTrackColor: ChronoTheme.surfaceElevated,
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: active
+                          ? ChronoTheme.textPrimary
+                          : ChronoTheme.textSecondary,
+                      fontSize: 13,
+                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: ChronoTheme.textMuted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: active ? activeColor : Colors.transparent,
+                border: Border.all(
+                  color: active ? activeColor : ChronoTheme.border,
+                  width: 1.5,
+                ),
+              ),
+              child: active
+                  ? const Icon(
+                      Icons.check_rounded,
+                      color: ChronoTheme.obsidian,
+                      size: 13,
+                    )
+                  : null,
+            ),
+          ],
+        ),
       ),
     );
   }
