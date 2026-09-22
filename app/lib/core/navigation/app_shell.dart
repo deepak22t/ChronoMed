@@ -6,11 +6,10 @@ import '../../../features/medications/presentation/medications_screen.dart';
 import '../../../features/routine/presentation/routine_screen.dart';
 import '../../../features/settings/presentation/settings_screen.dart';
 
-/// Responsive App Shell (Phase 1 Refined).
+/// Responsive App Shell (Calm Health Aesthetic).
 ///
-/// Features a custom, minimalist bottom navigation bar for mobile (< 640px)
-/// and a sleek sidebar for tablet/desktop (>= 640px) adhering to the
-/// strict 2-color clinical design system.
+/// Features a gentle, feather-weight bottom navigation bar for mobile (< 640px)
+/// with subtle active dot indicators, and a calm, quiet sidebar for desktop (>= 640px).
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -52,7 +51,7 @@ class _AppShellState extends State<AppShell> {
             children: _screens,
           ),
         ),
-        bottomNavigationBar: _MinimalBottomNav(
+        bottomNavigationBar: _CalmBottomNav(
           currentIndex: _selectedIndex,
           items: _navItems,
           onTap: (index) => setState(() => _selectedIndex = index),
@@ -60,13 +59,13 @@ class _AppShellState extends State<AppShell> {
       );
     }
 
-    // Desktop/Tablet Sidebar Layout
+    // Desktop/Tablet Sidebar
     return Scaffold(
       backgroundColor: ChronoTheme.obsidian,
       body: Row(
         children: [
           Container(
-            width: 80,
+            width: 76,
             decoration: const BoxDecoration(
               color: ChronoTheme.surface,
               border: Border(right: BorderSide(color: ChronoTheme.border)),
@@ -74,17 +73,17 @@ class _AppShellState extends State<AppShell> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                // Brand Monogram
+                // Calm Monogram
                 Container(
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
                     color: ChronoTheme.cyanSurface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: ChronoTheme.cyan.withOpacity(0.3)),
+                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
                   ),
                   child: const Center(
-                    child: Icon(Icons.show_chart_rounded, color: ChronoTheme.cyan, size: 20),
+                    child: Icon(Icons.blur_circular_rounded, color: ChronoTheme.primary, size: 20),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -101,18 +100,10 @@ class _AppShellState extends State<AppShell> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isSelected ? ChronoTheme.cyanSurface : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                isSelected ? item.activeIcon : item.icon,
-                                color: isSelected ? ChronoTheme.cyan : ChronoTheme.textMuted,
-                                size: 20,
-                              ),
+                            Icon(
+                              isSelected ? item.activeIcon : item.icon,
+                              color: isSelected ? ChronoTheme.primary : ChronoTheme.textMuted,
+                              size: 20,
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -121,6 +112,16 @@ class _AppShellState extends State<AppShell> {
                                 color: isSelected ? ChronoTheme.textPrimary : ChronoTheme.textDim,
                                 fontSize: 10,
                                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: isSelected ? 4 : 0,
+                              height: isSelected ? 4 : 0,
+                              decoration: const BoxDecoration(
+                                color: ChronoTheme.primary,
+                                shape: BoxShape.circle,
                               ),
                             ),
                           ],
@@ -144,14 +145,14 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-// ── Minimalist Mobile Bottom Navigation Bar ─────────────────────────────────
+// ── Gentle Calm Bottom Navigation Bar ───────────────────────────────────────
 
-class _MinimalBottomNav extends StatelessWidget {
+class _CalmBottomNav extends StatelessWidget {
   final int currentIndex;
   final List<({IconData icon, IconData activeIcon, String label})> items;
   final ValueChanged<int> onTap;
 
-  const _MinimalBottomNav({
+  const _CalmBottomNav({
     required this.currentIndex,
     required this.items,
     required this.onTap,
@@ -160,7 +161,7 @@ class _MinimalBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 60,
+      height: 58,
       decoration: const BoxDecoration(
         color: ChronoTheme.surface,
         border: Border(top: BorderSide(color: ChronoTheme.border, width: 1)),
@@ -178,28 +179,31 @@ class _MinimalBottomNav extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeInOut,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: isSelected ? ChronoTheme.cyanSurface : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      isSelected ? item.activeIcon : item.icon,
-                      color: isSelected ? ChronoTheme.cyan : ChronoTheme.textMuted,
-                      size: 20,
-                    ),
+                  Icon(
+                    isSelected ? item.activeIcon : item.icon,
+                    color: isSelected ? ChronoTheme.primary : ChronoTheme.textMuted,
+                    size: 20,
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     item.label,
                     style: TextStyle(
-                      color: isSelected ? ChronoTheme.cyan : ChronoTheme.textDim,
+                      color: isSelected ? ChronoTheme.textPrimary : ChronoTheme.textDim,
                       fontSize: 10.5,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       letterSpacing: 0.1,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  // Subtle Active Dot Indicator
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    width: isSelected ? 3.5 : 0,
+                    height: isSelected ? 3.5 : 0,
+                    decoration: const BoxDecoration(
+                      color: ChronoTheme.primary,
+                      shape: BoxShape.circle,
                     ),
                   ),
                 ],

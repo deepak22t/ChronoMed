@@ -4,7 +4,10 @@ import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 
-/// Dashboard — Primary "Today" screen (Mobile-First Design).
+/// Dashboard — Primary "Today" Screen (Calm Health Aesthetic).
+///
+/// Features a gentle, zero-glare circadian hero overview,
+/// high-legibility dose cards, and smooth one-touch checkmark logging.
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
@@ -14,233 +17,147 @@ class DashboardScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: ChronoTheme.obsidian,
-      body: Column(
-        children: [
-          _DashboardHeader(state: state),
-          Expanded(
-            child: state.hasConflict
-                ? _ConflictBanner(conflict: state.conflict!)
-                : _DoseListBody(state: state),
-          ),
-        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            _DashboardHeader(state: state),
+            Expanded(
+              child: state.hasConflict
+                  ? _ConflictBanner(conflict: state.conflict!)
+                  : _DoseListBody(state: state),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ── Header ──────────────────────────────────────────────────────────────────
+// ── 1. Quiet Header ─────────────────────────────────────────────────────────
 
 class _DashboardHeader extends StatelessWidget {
   final AppState state;
   const _DashboardHeader({required this.state});
 
+  String _getPhase(int minute) {
+    if (minute < 360) return 'Night Rest';
+    if (minute < 720) return 'Morning Surge';
+    if (minute < 1020) return 'Midday Phase';
+    if (minute < 1320) return 'Evening Buffer';
+    return 'Bedtime Preparation';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final phaseStr = _getPhase(state.currentMinuteOfDay);
+    final timeStr = IntervalMath.formatMinuteOfDay(state.currentMinuteOfDay);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: const BoxDecoration(
         color: ChronoTheme.surface,
         border: Border(bottom: BorderSide(color: ChronoTheme.border)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        const Text(
-                          "Today's Schedule",
-                          style: TextStyle(
-                            color: ChronoTheme.textPrimary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        if (state.isOversleptMode) ...[
-                          const SizedBox(width: 8),
-                          ChronoTheme.badge('SHIFTED', ChronoTheme.amber),
-                        ],
-                      ],
+                    const Text(
+                      'Today',
+                      style: TextStyle(
+                        color: ChronoTheme.textPrimary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
                     ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time_rounded,
-                            size: 13, color: ChronoTheme.cyan),
-                        const SizedBox(width: 4),
-                        Text(
-                          IntervalMath.formatMinuteOfDay(state.currentMinuteOfDay),
-                          style: const TextStyle(
-                            color: ChronoTheme.cyan,
-                            fontSize: 13,
-                            fontFamily: ChronoTheme.monoFont,
-                            fontWeight: FontWeight.w700,
-                          ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: ChronoTheme.cyanSurface,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        phaseStr,
+                        style: const TextStyle(
+                          color: ChronoTheme.primary,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(width: 10),
-                        Text(
-                          '${state.lastSolveDurationMs}ms solver',
-                          style: const TextStyle(
-                            color: ChronoTheme.textDim,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-              _AdherenceRing(
-                ratio: state.adherenceRatio,
-                taken: state.takenCount,
-                total: state.totalDoses,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Compact Metrics Row (Never overflows)
-          Row(
-            children: [
-              Expanded(
-                child: _MobileMetricItem(
-                  label: 'TAKEN',
-                  value: '${state.takenCount} / ${state.totalDoses}',
-                  color: ChronoTheme.emerald,
-                  icon: Icons.check_circle_outline_rounded,
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time_rounded, size: 12, color: ChronoTheme.textMuted),
+                    const SizedBox(width: 4),
+                    Text(
+                      timeStr,
+                      style: const TextStyle(
+                        color: ChronoTheme.textMuted,
+                        fontSize: 12,
+                        fontFamily: ChronoTheme.monoFont,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${state.lastSolveDurationMs}ms solver',
+                      style: const TextStyle(color: ChronoTheme.textDim, fontSize: 11),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _MobileMetricItem(
-                  label: 'REMAINING',
-                  value: '${state.totalDoses - state.takenCount}',
-                  color: ChronoTheme.cyan,
-                  icon: Icons.schedule_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _MobileMetricItem(
-                  label: 'ADHERENCE',
-                  value: '${(state.adherenceRatio * 100).round()}%',
-                  color: state.adherenceRatio >= 0.8
-                      ? ChronoTheme.emerald
-                      : state.adherenceRatio >= 0.5
-                          ? ChronoTheme.amber
-                          : ChronoTheme.rose,
-                  icon: Icons.donut_large_rounded,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MobileMetricItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final IconData icon;
-
-  const _MobileMetricItem({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: ChronoTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 12, color: color),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: ChronoTheme.textMuted,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 3),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                fontFamily: ChronoTheme.monoFont,
-              ),
+              ],
             ),
           ),
+          // Symmetrical Adherence Dial
+          _AdherenceDial(
+            ratio: state.adherenceRatio,
+            taken: state.takenCount,
+            total: state.totalDoses,
+          ),
         ],
       ),
     );
   }
 }
 
-// ── Adherence Ring ───────────────────────────────────────────────────────────
-
-class _AdherenceRing extends StatelessWidget {
+class _AdherenceDial extends StatelessWidget {
   final double ratio;
   final int taken;
   final int total;
 
-  const _AdherenceRing({
+  const _AdherenceDial({
     required this.ratio,
     required this.taken,
     required this.total,
   });
 
-  Color get _color => ratio >= 0.8
-      ? ChronoTheme.emerald
-      : ratio >= 0.5
-          ? ChronoTheme.amber
-          : ChronoTheme.rose;
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 52,
-      height: 52,
+      width: 48,
+      height: 48,
       child: Stack(
         alignment: Alignment.center,
         children: [
           CircularProgressIndicator(
-            value: ratio,
-            strokeWidth: 4.5,
+            value: total > 0 ? ratio : 0.0,
+            strokeWidth: 3.5,
             backgroundColor: ChronoTheme.border,
-            valueColor: AlwaysStoppedAnimation(_color),
+            valueColor: const AlwaysStoppedAnimation(ChronoTheme.secondary),
           ),
           Text(
             '$taken/$total',
-            style: TextStyle(
-              color: _color,
+            style: const TextStyle(
+              color: ChronoTheme.textPrimary,
               fontSize: 11,
               fontWeight: FontWeight.w800,
               fontFamily: ChronoTheme.monoFont,
@@ -252,67 +169,7 @@ class _AdherenceRing extends StatelessWidget {
   }
 }
 
-// ── Conflict Banner ──────────────────────────────────────────────────────────
-
-class _ConflictBanner extends StatelessWidget {
-  final InfeasibleConflict conflict;
-  const _ConflictBanner({required this.conflict});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: ChronoTheme.rose.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: ChronoTheme.rose.withOpacity(0.4), width: 1.5),
-        ),
-        child: Column(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: ChronoTheme.rose, size: 40),
-            const SizedBox(height: 12),
-            const Text(
-              'Clinical Conflict Detected',
-              style: TextStyle(color: ChronoTheme.rose, fontSize: 16, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-            ChronoTheme.badge(conflict.errorCode, ChronoTheme.rose),
-            const SizedBox(height: 12),
-            Text(
-              conflict.clinicalExplanation,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 13, height: 1.4),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: ChronoTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.lightbulb_outline, color: ChronoTheme.amber, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      conflict.actionableAdvice,
-                      style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 12, height: 1.3),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Dose List Body ──────────────────────────────────────────────────────────
+// ── 2. Dose List Body ───────────────────────────────────────────────────────
 
 class _DoseListBody extends StatelessWidget {
   final AppState state;
@@ -328,11 +185,14 @@ class _DoseListBody extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.medication_liquid_outlined, size: 56, color: ChronoTheme.textMuted),
-            SizedBox(height: 14),
-            Text('No medications scheduled.', style: TextStyle(color: ChronoTheme.textMuted, fontSize: 15)),
-            SizedBox(height: 6),
-            Text('Add medications on the Meds tab.', style: TextStyle(color: ChronoTheme.textDim, fontSize: 12)),
+            Icon(Icons.medication_outlined, size: 48, color: ChronoTheme.textMuted),
+            SizedBox(height: 12),
+            Text(
+              'No medications scheduled',
+              style: TextStyle(color: ChronoTheme.textSecondary, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 4),
+            Text('Add medications in the Meds tab.', style: TextStyle(color: ChronoTheme.textDim, fontSize: 12)),
           ],
         ),
       );
@@ -341,10 +201,13 @@ class _DoseListBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       children: [
+        // 1. Next Dose Calm Hero Banner
         if (nextDose != null) ...[
-          _HeroDoseCard(dose: nextDose, state: state),
-          const SizedBox(height: 20),
+          _NextDoseHero(dose: nextDose, state: state),
+          const SizedBox(height: 18),
         ],
+
+        // 2. Section Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -354,151 +217,164 @@ class _DoseListBody extends StatelessWidget {
                 color: ChronoTheme.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                letterSpacing: 1.0,
+                letterSpacing: 0.8,
               ),
             ),
             Text(
-              '${doses.length} scheduled',
-              style: const TextStyle(color: ChronoTheme.textDim, fontSize: 11),
+              '${state.takenCount} of ${state.totalDoses} taken',
+              style: const TextStyle(
+                color: ChronoTheme.secondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 10),
-        ...doses.map((d) => _MobileDoseCard(dose: d, state: state)),
+
+        // 3. Dose Cards
+        ...doses.map((dose) => _CalmDoseCard(dose: dose, state: state)),
       ],
     );
   }
 }
 
-// ── Hero Next Dose Card (Mobile-First) ────────────────────────────────────────
+// ── 3. Next Dose Hero Card (Gentle, Restorative) ─────────────────────────────
 
-class _HeroDoseCard extends StatelessWidget {
+class _NextDoseHero extends StatelessWidget {
   final ScheduledDose dose;
   final AppState state;
 
-  const _HeroDoseCard({required this.dose, required this.state});
+  const _NextDoseHero({required this.dose, required this.state});
 
   @override
   Widget build(BuildContext context) {
+    final diff = dose.scheduledMinute - state.currentMinuteOfDay;
+    final countdown = diff <= 0
+        ? 'Due Now'
+        : diff < 60
+            ? 'in $diff min'
+            : 'in ${diff ~/ 60}h ${diff % 60}m';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            ChronoTheme.cyan.withOpacity(0.12),
-            ChronoTheme.emerald.withOpacity(0.06),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: ChronoTheme.cyan.withOpacity(0.35), width: 1.5),
+        color: ChronoTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+        border: Border.all(color: ChronoTheme.primary.withOpacity(0.3), width: 1.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              ChronoTheme.badge('UP NEXT', ChronoTheme.cyan),
-              const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: ChronoTheme.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'NEXT SCHEDULED DOSE',
+                style: TextStyle(
+                  color: ChronoTheme.primary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                countdown,
+                style: const TextStyle(
+                  color: ChronoTheme.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              // Time Capsule
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: ChronoTheme.surfaceCard,
+                  color: ChronoTheme.surfaceElevated,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: ChronoTheme.cyan.withOpacity(0.3)),
                 ),
                 child: Text(
                   dose.formattedTime,
                   style: const TextStyle(
-                    color: ChronoTheme.cyan,
-                    fontSize: 14,
+                    color: ChronoTheme.primary,
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                     fontFamily: ChronoTheme.monoFont,
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            dose.medicationName,
-            style: const TextStyle(
-              color: ChronoTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          Text(
-            dose.dosage,
-            style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 13),
-          ),
-          const SizedBox(height: 10),
-          // Clinical note
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: ChronoTheme.surfaceCard,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.info_outline_rounded, size: 14, color: ChronoTheme.cyan),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    dose.clinicalInstruction,
-                    style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 12, height: 1.3),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.restaurant_menu_rounded, size: 13, color: ChronoTheme.emerald),
-              const SizedBox(width: 5),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  dose.safeFoodWindowNote,
-                  style: const TextStyle(color: ChronoTheme.emerald, fontSize: 11, fontWeight: FontWeight.w600),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${dose.medicationName} (${dose.dosage})',
+                      style: const TextStyle(
+                        color: ChronoTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      dose.safeFoodWindowNote,
+                      style: const TextStyle(
+                        color: ChronoTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          // Mobile Action Buttons
+          // Action Buttons
           Row(
             children: [
               Expanded(
                 flex: 3,
                 child: ElevatedButton.icon(
                   onPressed: () => state.markDoseTaken(dose.medicationId),
-                  icon: const Icon(Icons.check_circle_rounded, size: 16),
-                  label: const Text('Took It Now', style: TextStyle(fontWeight: FontWeight.w700)),
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 15),
+                  label: const Text('Mark as Taken', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: ChronoTheme.emerald,
+                    backgroundColor: ChronoTheme.secondary,
                     foregroundColor: ChronoTheme.obsidian,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 flex: 2,
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: () => state.advanceClock(15),
-                  icon: const Icon(Icons.snooze_rounded, size: 14),
-                  label: const Text('+15m', style: TextStyle(fontWeight: FontWeight.w700)),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: ChronoTheme.amber,
-                    side: const BorderSide(color: ChronoTheme.amber),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    foregroundColor: ChronoTheme.textSecondary,
+                    side: const BorderSide(color: ChronoTheme.border),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
+                  child: const Text('+15 min', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
@@ -509,22 +385,13 @@ class _HeroDoseCard extends StatelessWidget {
   }
 }
 
-// ── Mobile Dose Card ─────────────────────────────────────────────────────────
+// ── 4. Tactile Dose Card (Symmetrical & Clean) ───────────────────────────────
 
-class _MobileDoseCard extends StatelessWidget {
+class _CalmDoseCard extends StatelessWidget {
   final ScheduledDose dose;
   final AppState state;
 
-  const _MobileDoseCard({required this.dose, required this.state});
-
-  Color get _statusColor => switch (dose.status) {
-        DoseStatus.taken => ChronoTheme.emerald,
-        DoseStatus.missed => ChronoTheme.rose,
-        DoseStatus.escalated => ChronoTheme.rose,
-        DoseStatus.due => ChronoTheme.cyan,
-        DoseStatus.snoozed => ChronoTheme.amber,
-        _ => ChronoTheme.textMuted,
-      };
+  const _CalmDoseCard({required this.dose, required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -532,95 +399,151 @@ class _MobileDoseCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: isTaken ? ChronoTheme.surface : ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
         border: Border.all(
-          color: isTaken ? ChronoTheme.border : _statusColor.withOpacity(0.3),
+          color: isTaken ? ChronoTheme.borderSubtle : ChronoTheme.border,
+          width: 1.0,
         ),
       ),
       child: InkWell(
         onTap: () => state.markDoseTaken(dose.medicationId),
+        borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
         child: Row(
           children: [
-            // Left Status Color Strip & Time
+            // Time Pill
             Container(
-              width: 4,
-              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: _statusColor,
-                borderRadius: BorderRadius.circular(2),
+                color: isTaken ? ChronoTheme.surfaceElevated : ChronoTheme.cyanSurface,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                dose.formattedTime,
+                style: TextStyle(
+                  color: isTaken ? ChronoTheme.textDim : ChronoTheme.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: ChronoTheme.monoFont,
+                  decoration: isTaken ? TextDecoration.lineThrough : null,
+                ),
               ),
             ),
-            const SizedBox(width: 10),
-            // Time
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dose.formattedTime,
-                  style: TextStyle(
-                    color: isTaken ? ChronoTheme.textDim : ChronoTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: ChronoTheme.monoFont,
-                    decoration: isTaken ? TextDecoration.lineThrough : null,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isTaken ? 'TAKEN' : dose.status.displayName.toUpperCase(),
-                  style: TextStyle(
-                    color: _statusColor,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(width: 12),
-            // Med Name & Details
+
+            // Drug Name & Food Note
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    dose.medicationName,
+                    '${dose.medicationName} (${dose.dosage})',
                     style: TextStyle(
                       color: isTaken ? ChronoTheme.textMuted : ChronoTheme.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
                       decoration: isTaken ? TextDecoration.lineThrough : null,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    '${dose.dosage} • ${dose.safeFoodWindowNote}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: ChronoTheme.textDim, fontSize: 11),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.restaurant_outlined,
+                        size: 11,
+                        color: isTaken ? ChronoTheme.textDim : ChronoTheme.textMuted,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          dose.safeFoodWindowNote,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isTaken ? ChronoTheme.textDim : ChronoTheme.textSecondary,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+
             const SizedBox(width: 8),
-            // Checkbox Icon
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isTaken ? ChronoTheme.emerald.withOpacity(0.15) : ChronoTheme.surfaceElevated,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isTaken ? ChronoTheme.emerald : ChronoTheme.border,
-                  width: 1.5,
+
+            // Checkmark Action Circle
+            GestureDetector(
+              onTap: isTaken ? null : () => state.markDoseTaken(dose.medicationId),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: isTaken ? ChronoTheme.emeraldSurface : Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isTaken ? ChronoTheme.secondary : ChronoTheme.border,
+                    width: 1.5,
+                  ),
                 ),
+                child: isTaken
+                    ? const Icon(Icons.check_rounded, color: ChronoTheme.secondary, size: 16)
+                    : null,
               ),
-              child: isTaken
-                  ? const Icon(Icons.check_rounded, color: ChronoTheme.emerald, size: 18)
-                  : const SizedBox(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 5. Conflict State ───────────────────────────────────────────────────────
+
+class _ConflictBanner extends StatelessWidget {
+  final InfeasibleConflict conflict;
+  const _ConflictBanner({required this.conflict});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: ChronoTheme.roseSurface,
+          borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+          border: Border.all(color: ChronoTheme.rose.withOpacity(0.35)),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: ChronoTheme.rose, size: 36),
+            const SizedBox(height: 10),
+            const Text(
+              'Clinical Conflict Detected',
+              style: TextStyle(color: ChronoTheme.rose, fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              conflict.clinicalExplanation,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: ChronoTheme.surfaceCard,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                conflict.actionableAdvice,
+                style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 12, height: 1.3),
+              ),
             ),
           ],
         ),

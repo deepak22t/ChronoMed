@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:core_engine/core_engine.dart';
+import '../../../core/theme/chrono_theme.dart';
 
-/// High-Definition 24-Hour Circadian Map Painter.
-/// Features collision-free pill cards, glowing 'NOW' indicator,
-/// circadian meal gradients, and crisp dark-mode typography.
+/// Calm Health 24-Hour Circadian Map Painter.
+///
+/// Features low-glare soothing opacity bands, collision-resistant pill cards,
+/// gentle Glacial Blue "NOW" indicator, and crisp dark-mode typography.
 class TimelinePainter extends CustomPainter {
   final Routine routine;
   final List<ScheduledDose> doses;
@@ -11,7 +13,7 @@ class TimelinePainter extends CustomPainter {
   final String? selectedDoseId;
 
   static const double _canvasHeight = 1680.0;
-  static const double _gutterWidth = 54.0;
+  static const double _gutterWidth = 52.0;
   static const double _heightPerMinute = _canvasHeight / 1440.0;
 
   TimelinePainter({
@@ -34,7 +36,7 @@ class TimelinePainter extends CustomPainter {
   // ── 1. Hour Grid ───────────────────────────────────────────────────────────
   void _drawHourGrid(Canvas canvas, Size size) {
     final gridPaint = Paint()
-      ..color = const Color(0xFF1E293B).withOpacity(0.7)
+      ..color = ChronoTheme.borderSubtle
       ..strokeWidth = 1.0;
 
     final tp = TextPainter(textDirection: TextDirection.ltr);
@@ -55,10 +57,10 @@ class TimelinePainter extends CustomPainter {
       tp.text = TextSpan(
         text: label,
         style: TextStyle(
-          color: isMajor ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+          color: isMajor ? ChronoTheme.textSecondary : ChronoTheme.textDim,
           fontSize: isMajor ? 10 : 9,
           fontWeight: isMajor ? FontWeight.w700 : FontWeight.w500,
-          fontFamily: 'monospace',
+          fontFamily: ChronoTheme.monoFont,
         ),
       );
       tp.layout();
@@ -66,29 +68,27 @@ class TimelinePainter extends CustomPainter {
     }
   }
 
-  // ── 2. Sleep Bands ─────────────────────────────────────────────────────────
+  // ── 2. Sleep Bands (Soft Neutral Slate) ────────────────────────────────────
   void _drawSleepBands(Canvas canvas, Size size) {
-    final sleepPaint = Paint()..color = const Color(0xFF6366F1).withOpacity(0.08);
+    final sleepPaint = Paint()..color = const Color(0xFF64748B).withOpacity(0.06);
     final wakeY = routine.wakeTimeMinutes * _heightPerMinute;
     final sleepY = routine.sleepTimeMinutes * _heightPerMinute;
 
-    // Pre-wake sleep
     canvas.drawRect(Rect.fromLTRB(_gutterWidth, 0, size.width, wakeY), sleepPaint);
-    // Post-bedtime sleep
     canvas.drawRect(Rect.fromLTRB(_gutterWidth, sleepY, size.width, _canvasHeight), sleepPaint);
 
-    _drawBandBadge(canvas, '🌙 SLEEP / REST', _gutterWidth + 10, wakeY / 2 - 10, const Color(0xFF818CF8));
-    _drawBandBadge(canvas, '🌙 SLEEP / REST', _gutterWidth + 10, sleepY + (_canvasHeight - sleepY) / 2 - 10, const Color(0xFF818CF8));
+    _drawBandLabel(canvas, 'SLEEP WINDOW', _gutterWidth + 10, wakeY / 2 - 8, ChronoTheme.textMuted);
+    _drawBandLabel(canvas, 'SLEEP WINDOW', _gutterWidth + 10, sleepY + (_canvasHeight - sleepY) / 2 - 8, ChronoTheme.textMuted);
   }
 
-  // ── 3. Fasting Hazard Bands ────────────────────────────────────────────────
+  // ── 3. Fasting Buffer Bands ────────────────────────────────────────────────
   void _drawFastingBands(Canvas canvas, Size size) {
     const preBuf = ClinicalBuffers.emptyStomachPreMealBufferMinutes;
     const postBuf = ClinicalBuffers.emptyStomachPostMealBufferMinutes;
 
-    final fastFill = Paint()..color = const Color(0xFFF43F5E).withOpacity(0.06);
+    final fastFill = Paint()..color = ChronoTheme.rose.withOpacity(0.04);
     final fastBorder = Paint()
-      ..color = const Color(0xFFF43F5E).withOpacity(0.25)
+      ..color = ChronoTheme.rose.withOpacity(0.18)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -100,7 +100,7 @@ class TimelinePainter extends CustomPainter {
         final rRect = RRect.fromRectAndRadius(r, const Radius.circular(6));
         canvas.drawRRect(rRect, fastFill);
         canvas.drawRRect(rRect, fastBorder);
-        _drawBandBadge(canvas, '⚠️ FASTING BUFFER (Pre-${meal.displayName})', _gutterWidth + 10, preStart + 4, const Color(0xFFF43F5E));
+        _drawBandLabel(canvas, 'FASTING BUFFER (${meal.displayName})', _gutterWidth + 8, preStart + 4, ChronoTheme.rose);
       }
 
       final postStart = meal.endTimeMinutes * _heightPerMinute;
@@ -110,18 +110,18 @@ class TimelinePainter extends CustomPainter {
         final rRect = RRect.fromRectAndRadius(r, const Radius.circular(6));
         canvas.drawRRect(rRect, fastFill);
         canvas.drawRRect(rRect, fastBorder);
-        _drawBandBadge(canvas, '⚠️ FASTING BUFFER (Post-${meal.displayName})', _gutterWidth + 10, postStart + 4, const Color(0xFFF43F5E));
+        _drawBandLabel(canvas, 'FASTING BUFFER (${meal.displayName})', _gutterWidth + 8, postStart + 4, ChronoTheme.rose);
       }
     }
   }
 
-  // ── 4. Meal Bands ──────────────────────────────────────────────────────────
+  // ── 4. Meal Bands (Soft Muted Sage) ─────────────────────────────────────────
   void _drawMealBands(Canvas canvas, Size size) {
-    final mealFill = Paint()..color = const Color(0xFF10B981).withOpacity(0.14);
+    final mealFill = Paint()..color = ChronoTheme.secondary.withOpacity(0.08);
     final mealBorder = Paint()
-      ..color = const Color(0xFF10B981).withOpacity(0.5)
+      ..color = ChronoTheme.secondary.withOpacity(0.3)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.2;
 
     for (final meal in routine.meals) {
       final top = meal.startTimeMinutes * _heightPerMinute;
@@ -132,27 +132,20 @@ class TimelinePainter extends CustomPainter {
       canvas.drawRRect(rRect, mealFill);
       canvas.drawRRect(rRect, mealBorder);
 
-      final icon = meal.type == MealType.breakfast
-          ? '🍳'
-          : meal.type == MealType.lunch
-              ? '🥗'
-              : '🍲';
-
-      _drawBandBadge(
+      final timeStr = '${meal.startTimeMinutes ~/ 60}:${(meal.startTimeMinutes % 60).toString().padLeft(2, '0')}';
+      _drawBandLabel(
         canvas,
-        '$icon ${meal.displayName.toUpperCase()} (${meal.startTimeMinutes ~/ 60}:${(meal.startTimeMinutes % 60).toString().padLeft(2, '0')})',
+        '${meal.displayName.toUpperCase()} ($timeStr)',
         _gutterWidth + 10,
         top + 6,
-        const Color(0xFF34D399),
+        ChronoTheme.secondary,
       );
     }
   }
 
-  // ── 5. Dose Cards (Collision-Resistant & Polished) ──────────────────────────
+  // ── 5. Dose Cards (Collision-Resistant & Quiet) ─────────────────────────────
   void _drawDoses(Canvas canvas, Size size) {
     final tp = TextPainter(textDirection: TextDirection.ltr);
-
-    // Track vertical positions to prevent visual collision
     double lastCardBottom = -100.0;
 
     for (var i = 0; i < doses.length; i++) {
@@ -161,177 +154,120 @@ class TimelinePainter extends CustomPainter {
       final isTaken = dose.status == DoseStatus.taken;
       final isSelected = dose.id == selectedDoseId;
 
-      final color = isTaken
-          ? const Color(0xFF10B981)
-          : dose.status == DoseStatus.due
-              ? const Color(0xFF22D3EE)
-              : dose.status == DoseStatus.missed
-                  ? const Color(0xFFF43F5E)
-                  : const Color(0xFFF59E0B);
+      final color = isTaken ? ChronoTheme.secondary : ChronoTheme.primary;
 
-      // Node point on timeline track
-      canvas.drawCircle(Offset(_gutterWidth + 12, targetY), 6, Paint()..color = color);
-      canvas.drawCircle(
-        Offset(_gutterWidth + 12, targetY),
-        3,
-        Paint()..color = const Color(0xFF07090E),
-      );
+      // Small circular node on timeline axis
+      canvas.drawCircle(Offset(_gutterWidth + 12, targetY), 5, Paint()..color = color);
+      canvas.drawCircle(Offset(_gutterWidth + 12, targetY), 2.5, Paint()..color = ChronoTheme.obsidian);
 
-      // Card positioning (prevent collision)
+      // Collision avoidance
       var cardY = targetY - 18;
       if (cardY < lastCardBottom + 4) {
         cardY = lastCardBottom + 4;
       }
-      const cardHeight = 42.0;
+      const cardHeight = 40.0;
       lastCardBottom = cardY + cardHeight;
 
-      const cardLeft = _gutterWidth + 26;
+      const cardLeft = _gutterWidth + 24;
       final cardWidth = (size.width - cardLeft - 10).clamp(140.0, 520.0);
       final cardRect = Rect.fromLTWH(cardLeft, cardY, cardWidth, cardHeight);
-      final rRect = RRect.fromRectAndRadius(cardRect, const Radius.circular(10));
-
-      // Glow if selected
-      if (isSelected) {
-        final glowPaint = Paint()
-          ..color = color.withOpacity(0.4)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-        canvas.drawRRect(rRect, glowPaint);
-      }
+      final rRect = RRect.fromRectAndRadius(cardRect, const Radius.circular(8));
 
       // Card surface
       canvas.drawRRect(
         rRect,
-        Paint()
-          ..color = isTaken
-              ? const Color(0xFF111827)
-              : isSelected
-                  ? color.withOpacity(0.18)
-                  : const Color(0xFF161F30),
+        Paint()..color = isTaken ? ChronoTheme.surface : ChronoTheme.surfaceCard,
       );
-
-      // Card border
       canvas.drawRRect(
         rRect,
         Paint()
-          ..color = isTaken
-              ? const Color(0xFF1F2937)
-              : isSelected
-                  ? color
-                  : color.withOpacity(0.5)
+          ..color = isSelected ? color : (isTaken ? ChronoTheme.borderSubtle : ChronoTheme.border)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = isSelected ? 1.8 : 1.2,
+          ..strokeWidth = 1.0,
       );
 
-      // Text inside card: Time pill + Drug Name
+      // Card Text
       tp.text = TextSpan(
         children: [
           TextSpan(
             text: '${dose.formattedTime}  ',
             style: TextStyle(
-              color: isTaken ? const Color(0xFF64748B) : color,
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
-              fontFamily: 'monospace',
-            ),
-          ),
-          TextSpan(
-            text: '${dose.medicationName} ',
-            style: TextStyle(
-              color: isTaken ? const Color(0xFF64748B) : Colors.white,
+              color: isTaken ? ChronoTheme.textDim : color,
               fontWeight: FontWeight.w700,
-              fontSize: 12,
-              decoration: isTaken ? TextDecoration.lineThrough : null,
+              fontSize: 10.5,
+              fontFamily: ChronoTheme.monoFont,
             ),
           ),
           TextSpan(
-            text: '(${dose.dosage})',
+            text: '${dose.medicationName} (${dose.dosage})',
             style: TextStyle(
-              color: isTaken ? const Color(0xFF475569) : const Color(0xFF94A3B8),
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
+              color: isTaken ? ChronoTheme.textMuted : ChronoTheme.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 11.5,
+              decoration: isTaken ? TextDecoration.lineThrough : null,
             ),
           ),
         ],
       );
       tp.layout(maxWidth: cardWidth - 16);
-      tp.paint(canvas, Offset(cardRect.left + 10, cardRect.top + 7));
+      tp.paint(canvas, Offset(cardRect.left + 10, cardRect.top + 6));
 
-      // Second row instruction note
+      // Subtitle note
       final tpSub = TextPainter(
         text: TextSpan(
-          text: isTaken ? '✓ Taken' : dose.clinicalInstruction,
+          text: isTaken ? 'Taken' : dose.clinicalInstruction,
           style: TextStyle(
-            color: isTaken ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+            color: isTaken ? ChronoTheme.secondary : ChronoTheme.textSecondary,
             fontSize: 9.5,
-            fontWeight: FontWeight.w500,
           ),
         ),
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: cardWidth - 16);
-      tpSub.paint(canvas, Offset(cardRect.left + 10, cardRect.top + 23));
+      tpSub.paint(canvas, Offset(cardRect.left + 10, cardRect.top + 22));
     }
   }
 
-  // ── 6. Now Indicator (Glowing Beaming Line) ─────────────────────────────────
+  // ── 6. Now Indicator (Gentle Glacial Blue Line) ─────────────────────────────
   void _drawNowIndicator(Canvas canvas, Size size) {
     if (currentMinuteOfDay < 0 || currentMinuteOfDay >= 1440) return;
 
     final y = currentMinuteOfDay * _heightPerMinute;
 
-    // Glowing line
     canvas.drawLine(
-      Offset(_gutterWidth - 8, y),
+      Offset(_gutterWidth - 6, y),
       Offset(size.width, y),
       Paint()
-        ..color = const Color(0xFF22D3EE).withOpacity(0.5)
-        ..strokeWidth = 3.0
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+        ..color = ChronoTheme.primary.withOpacity(0.6)
+        ..strokeWidth = 1.2,
     );
 
-    // Sharp line
-    canvas.drawLine(
-      Offset(_gutterWidth - 8, y),
-      Offset(size.width, y),
-      Paint()
-        ..color = const Color(0xFF22D3EE)
-        ..strokeWidth = 1.5,
-    );
-
-    // Glowing pulsing dot
     canvas.drawCircle(
-      Offset(_gutterWidth - 8, y),
-      6,
-      Paint()
-        ..color = const Color(0xFF22D3EE).withOpacity(0.4)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-    );
-    canvas.drawCircle(
-      Offset(_gutterWidth - 8, y),
+      Offset(_gutterWidth - 6, y),
       3.5,
-      Paint()..color = const Color(0xFF22D3EE),
+      Paint()..color = ChronoTheme.primary,
     );
 
     final tp = TextPainter(
       text: const TextSpan(
         text: 'NOW',
         style: TextStyle(
-          color: Color(0xFF22D3EE),
+          color: ChronoTheme.primary,
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.8,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.6,
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(canvas, Offset(_gutterWidth - 8, y - 13));
+    tp.paint(canvas, Offset(_gutterWidth - 6, y - 12));
   }
 
-  void _drawBandBadge(Canvas canvas, String text, double x, double y, Color color) {
+  void _drawBandLabel(Canvas canvas, String text, double x, double y, Color color) {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
-          color: color,
+          color: color.withOpacity(0.8),
           fontSize: 8.5,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.3,

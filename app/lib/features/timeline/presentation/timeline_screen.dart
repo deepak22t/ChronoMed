@@ -5,13 +5,12 @@ import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import 'timeline_painter.dart';
 
-/// Clinical Timeline Screen (Mobile-First Masterpiece).
+/// Clinical Timeline Screen (Calm Health Aesthetic).
 ///
-/// Provides a dual-mode experience:
-/// 1. [ChronoFeedView] (Default): A clear, readable, touch-friendly vertical
-///    schedule integrating medications, meals, fasting buffers, and sleep into
-///    a unified chronological stream with one-tap logging.
-/// 2. [CircadianMapView]: A high-definition 24-hour visual chronobiology canvas.
+/// Features a quiet, restorative dual-mode experience:
+/// 1. [ChronoFeedView]: A clean chronological vertical stream merging
+///    medications, meals, fasting buffers, and sleep with zero cartoon emojis.
+/// 2. [CircadianMapView]: A soothing 24-hour visual map in Soft Glacial Blue & Muted Sage.
 class TimelineScreen extends StatefulWidget {
   const TimelineScreen({super.key});
 
@@ -51,7 +50,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 }
 
-// ── 1. Top Header & Mode Switcher ───────────────────────────────────────────
+// ── 1. Top Header & Segmented Switcher ───────────────────────────────────────
 
 class _TimelineHeader extends StatelessWidget {
   final AppState state;
@@ -64,18 +63,18 @@ class _TimelineHeader extends StatelessWidget {
     required this.onViewModeChanged,
   });
 
-  String _getPhaseTitle(int minuteOfDay) {
-    if (minuteOfDay < 360) return '🌙 Night Rest Window';
-    if (minuteOfDay < 720) return '🌅 Morning Circadian Surge';
-    if (minuteOfDay < 1020) return '☀️ Afternoon Metabolic Phase';
-    if (minuteOfDay < 1320) return '🌆 Evening Nutritional Buffer';
-    return '🌙 Bedtime Rest Preparation';
+  String _getPhase(int minute) {
+    if (minute < 360) return 'Night Rest';
+    if (minute < 720) return 'Morning Surge';
+    if (minute < 1020) return 'Midday Phase';
+    if (minute < 1320) return 'Evening Buffer';
+    return 'Bedtime Rest';
   }
 
   @override
   Widget build(BuildContext context) {
-    final phaseTitle = _getPhaseTitle(state.currentMinuteOfDay);
-    final currentTimeStr = IntervalMath.formatMinuteOfDay(state.currentMinuteOfDay);
+    final phaseStr = _getPhase(state.currentMinuteOfDay);
+    final timeStr = IntervalMath.formatMinuteOfDay(state.currentMinuteOfDay);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -86,7 +85,6 @@ class _TimelineHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Row: Title + Shift Button
           Row(
             children: [
               Expanded(
@@ -106,25 +104,18 @@ class _TimelineHeader extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          phaseTitle,
+                          phaseStr,
                           style: const TextStyle(
-                            color: ChronoTheme.cyan,
+                            color: ChronoTheme.primary,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Container(
-                          width: 3,
-                          height: 3,
-                          decoration: const BoxDecoration(
-                            color: ChronoTheme.textDim,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                        Container(width: 3, height: 3, decoration: const BoxDecoration(color: ChronoTheme.textDim, shape: BoxShape.circle)),
                         const SizedBox(width: 6),
                         Text(
-                          currentTimeStr,
+                          timeStr,
                           style: const TextStyle(
                             color: ChronoTheme.textDim,
                             fontSize: 11,
@@ -136,16 +127,16 @@ class _TimelineHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              // Simulate +2h or Reset button
+              // Time Shift Toggle
               if (state.isOversleptMode)
                 OutlinedButton.icon(
                   onPressed: () => state.resetOverslept(),
-                  icon: const Icon(Icons.refresh_rounded, size: 13),
-                  label: const Text('Reset Time', style: TextStyle(fontSize: 11)),
+                  icon: const Icon(Icons.refresh_rounded, size: 12),
+                  label: const Text('Reset', style: TextStyle(fontSize: 11)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: ChronoTheme.rose,
                     side: const BorderSide(color: ChronoTheme.rose),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -153,12 +144,12 @@ class _TimelineHeader extends StatelessWidget {
               else
                 OutlinedButton.icon(
                   onPressed: () => state.simulateOverslept(),
-                  icon: const Icon(Icons.alarm_add_rounded, size: 13),
-                  label: const Text('+2h Overslept', style: TextStyle(fontSize: 11)),
+                  icon: const Icon(Icons.alarm_add_rounded, size: 12),
+                  label: const Text('+2h Shift', style: TextStyle(fontSize: 11)),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: ChronoTheme.amber,
-                    side: const BorderSide(color: ChronoTheme.amber),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    foregroundColor: ChronoTheme.textSecondary,
+                    side: const BorderSide(color: ChronoTheme.border),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -167,20 +158,20 @@ class _TimelineHeader extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Segmented Switcher: [ 📋 Schedule Feed ] [ 📊 24h Circadian Map ]
+          // Gentle Segmented Capsule
           Container(
-            height: 36,
-            padding: const EdgeInsets.all(3),
+            height: 34,
+            padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: ChronoTheme.surfaceElevated,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: ChronoTheme.border),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: _SegmentTab(
-                    icon: Icons.view_agenda_rounded,
+                    icon: Icons.view_agenda_outlined,
                     label: 'Schedule Feed',
                     badgeCount: state.doses.length,
                     isSelected: viewMode == 0,
@@ -224,27 +215,27 @@ class _SegmentTab extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 180),
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
-          color: isSelected ? ChronoTheme.cyan.withOpacity(0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(7),
-          border: isSelected ? Border.all(color: ChronoTheme.cyan.withOpacity(0.4)) : null,
+          color: isSelected ? ChronoTheme.cyanSurface : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: isSelected ? Border.all(color: ChronoTheme.primary.withOpacity(0.35)) : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: 14,
-              color: isSelected ? ChronoTheme.cyan : ChronoTheme.textMuted,
+              size: 13,
+              color: isSelected ? ChronoTheme.primary : ChronoTheme.textMuted,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
                 color: isSelected ? ChronoTheme.textPrimary : ChronoTheme.textMuted,
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
@@ -253,14 +244,14 @@ class _SegmentTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
-                  color: isSelected ? ChronoTheme.cyan : ChronoTheme.surfaceCard,
-                  borderRadius: BorderRadius.circular(10),
+                  color: isSelected ? ChronoTheme.primary : ChronoTheme.surfaceCard,
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '$badgeCount',
                   style: TextStyle(
                     color: isSelected ? ChronoTheme.obsidian : ChronoTheme.textDim,
-                    fontSize: 10,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -273,7 +264,7 @@ class _SegmentTab extends StatelessWidget {
   }
 }
 
-// ── 2. Primary Chrono Feed View (The Core Solution) ───────────────────────────
+// ── 2. Primary Chrono Feed View (Zero Emojis, Quiet Aesthetic) ───────────────
 
 class _ChronoFeedView extends StatelessWidget {
   final AppState state;
@@ -282,12 +273,11 @@ class _ChronoFeedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nextDose = state.nextDose;
-    final timelineEvents = _buildTimelineEvents(state);
+    final events = _buildTimelineEvents(state);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       children: [
-        // 1. Hero Next-Dose Banner
         if (nextDose != null)
           _NextDoseHeroCard(dose: nextDose, state: state)
         else if (state.doses.isNotEmpty && state.adherenceRatio >= 1.0)
@@ -295,33 +285,31 @@ class _ChronoFeedView extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // 2. Timeline Section Title
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'TODAY\'S CHRONOLOGICAL ORDER',
+              'CHRONOLOGICAL ORDER',
               style: TextStyle(
                 color: ChronoTheme.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
               ),
             ),
             Text(
-              '${state.takenCount}/${state.totalDoses} Taken',
+              '${state.takenCount} of ${state.totalDoses} taken',
               style: const TextStyle(
-                color: ChronoTheme.emerald,
+                color: ChronoTheme.secondary,
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
 
-        // 3. Chronological Flow Stream
-        ...timelineEvents.map((event) => _TimelineItemWidget(event: event, state: state)),
+        ...events.map((e) => _TimelineItemWidget(event: e, state: state)),
       ],
     );
   }
@@ -329,17 +317,17 @@ class _ChronoFeedView extends StatelessWidget {
   List<_TimelineEvent> _buildTimelineEvents(AppState state) {
     final events = <_TimelineEvent>[];
 
-    // Wake Up Event
+    // Wake Up
     events.add(
       _TimelineEvent(
         minute: state.routine.wakeTimeMinutes,
         type: _EventType.wake,
-        title: 'Circadian Wake Up',
-        subtitle: 'Cortisol surge window activates',
+        title: 'Wake Up Window',
+        subtitle: 'Circadian cortisol activation',
       ),
     );
 
-    // Meal Events
+    // Meals
     for (final meal in state.routine.meals) {
       events.add(
         _TimelineEvent(
@@ -347,13 +335,12 @@ class _ChronoFeedView extends StatelessWidget {
           type: _EventType.meal,
           meal: meal,
           title: '${meal.displayName} Window',
-          subtitle:
-              '${IntervalMath.formatMinuteOfDay(meal.startTimeMinutes)} - ${IntervalMath.formatMinuteOfDay(meal.endTimeMinutes)}',
+          subtitle: '${IntervalMath.formatMinuteOfDay(meal.startTimeMinutes)} - ${IntervalMath.formatMinuteOfDay(meal.endTimeMinutes)}',
         ),
       );
     }
 
-    // Medication Dose Events
+    // Doses
     for (final dose in state.doses) {
       events.add(
         _TimelineEvent(
@@ -366,20 +353,19 @@ class _ChronoFeedView extends StatelessWidget {
       );
     }
 
-    // Sleep Event
+    // Sleep
     events.add(
       _TimelineEvent(
         minute: state.routine.sleepTimeMinutes,
         type: _EventType.sleep,
-        title: 'Bedtime & Melatonin Window',
-        subtitle: 'Optimal circadian sleep onset',
+        title: 'Bedtime Window',
+        subtitle: 'Melatonin circadian onset',
       ),
     );
 
-    // Sort strictly chronologically by minute
     events.sort((a, b) => a.minute.compareTo(b.minute));
 
-    // Insert live "NOW" event marker in the correct chronological position
+    // Insert live "NOW" divider
     final nowMinute = state.currentMinuteOfDay;
     var nowInserted = false;
     final finalEvents = <_TimelineEvent>[];
@@ -424,86 +410,57 @@ class _NextDoseHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final minutesDiff = dose.scheduledMinute - state.currentMinuteOfDay;
-    final countdownStr = minutesDiff <= 0
-        ? 'Due Now!'
-        : minutesDiff < 60
-            ? 'in $minutesDiff min'
-            : 'in ${minutesDiff ~/ 60}h ${minutesDiff % 60}m';
+    final diff = dose.scheduledMinute - state.currentMinuteOfDay;
+    final countdown = diff <= 0
+        ? 'Due Now'
+        : diff < 60
+            ? 'in $diff min'
+            : 'in ${diff ~/ 60}h ${diff % 60}m';
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ChronoTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ChronoTheme.cyan.withOpacity(0.4), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: ChronoTheme.cyan.withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: ChronoTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+        border: Border.all(color: ChronoTheme.primary.withOpacity(0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: ChronoTheme.cyan,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
+              Container(width: 6, height: 6, decoration: const BoxDecoration(color: ChronoTheme.primary, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
               const Text(
-                'UPCOMING NEXT DOSE',
+                'NEXT DOSE',
                 style: TextStyle(
-                  color: ChronoTheme.cyan,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
+                  color: ChronoTheme.primary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: 0.5,
                 ),
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: ChronoTheme.cyan.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: ChronoTheme.cyan.withOpacity(0.3)),
-                ),
-                child: Text(
-                  countdownStr,
-                  style: const TextStyle(
-                    color: ChronoTheme.cyan,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              Text(
+                countdown,
+                style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Scheduled Time Badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: ChronoTheme.surfaceCard,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: ChronoTheme.border),
+                  color: ChronoTheme.surfaceElevated,
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   dose.formattedTime,
                   style: const TextStyle(
-                    color: ChronoTheme.textPrimary,
-                    fontSize: 14,
+                    color: ChronoTheme.primary,
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                     fontFamily: ChronoTheme.monoFont,
                   ),
@@ -516,19 +473,12 @@ class _NextDoseHeroCard extends StatelessWidget {
                   children: [
                     Text(
                       '${dose.medicationName} (${dose.dosage})',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: const TextStyle(color: ChronoTheme.textPrimary, fontSize: 15.5, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      dose.clinicalInstruction,
-                      style: const TextStyle(
-                        color: ChronoTheme.textSecondary,
-                        fontSize: 12,
-                      ),
+                      dose.safeFoodWindowNote,
+                      style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 12),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -538,18 +488,17 @@ class _NextDoseHeroCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // Quick Action Button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () => state.markDoseTaken(dose.medicationId),
-              icon: const Icon(Icons.check_circle_rounded, size: 16),
-              label: const Text('Mark as Taken Now', style: TextStyle(fontSize: 13)),
+              icon: const Icon(Icons.check_circle_outline_rounded, size: 15),
+              label: const Text('Mark as Taken', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: ChronoTheme.emerald,
+                backgroundColor: ChronoTheme.secondary,
                 foregroundColor: ChronoTheme.obsidian,
                 padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
           ),
@@ -565,30 +514,26 @@ class _AllCompletedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: ChronoTheme.emerald.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ChronoTheme.emerald.withOpacity(0.3)),
+        color: ChronoTheme.emeraldSurface,
+        borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+        border: Border.all(color: ChronoTheme.secondary.withOpacity(0.3)),
       ),
       child: const Row(
         children: [
-          Icon(Icons.verified_rounded, color: ChronoTheme.emerald, size: 28),
+          Icon(Icons.check_circle_rounded, color: ChronoTheme.secondary, size: 24),
           SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'All Doses Completed!',
-                  style: TextStyle(
-                    color: ChronoTheme.emerald,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  'All Doses Completed',
+                  style: TextStyle(color: ChronoTheme.secondary, fontSize: 14, fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  '100% adherence maintained today with circadian synchronization.',
+                  '100% daily circadian adherence achieved.',
                   style: TextStyle(color: ChronoTheme.textSecondary, fontSize: 12),
                 ),
               ],
@@ -600,7 +545,7 @@ class _AllCompletedCard extends StatelessWidget {
   }
 }
 
-// ── 4. Unified Timeline Item Widget (Card + Connector) ────────────────────────
+// ── 4. Unified Timeline Item Widget ───────────────────────────────────────────
 
 class _TimelineItemWidget extends StatelessWidget {
   final _TimelineEvent event;
@@ -613,68 +558,52 @@ class _TimelineItemWidget extends StatelessWidget {
     if (event.type == _EventType.nowMarker) {
       return _buildNowDivider();
     }
-
     if (event.type == _EventType.dose) {
       return _buildDoseItem(context, event.dose!);
     }
-
     if (event.type == _EventType.meal) {
       return _buildMealItem(event.meal!);
     }
-
-    // Wake or Sleep milestone
     return _buildRoutineMilestone(event);
   }
 
   Widget _buildNowDivider() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
             decoration: BoxDecoration(
-              color: ChronoTheme.cyan,
-              borderRadius: BorderRadius.circular(12),
+              color: ChronoTheme.cyanSurface,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
             ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.radio_button_checked, size: 10, color: ChronoTheme.obsidian),
-                SizedBox(width: 4),
-                Text(
-                  'CURRENT TIME',
-                  style: TextStyle(
-                    color: ChronoTheme.obsidian,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+            child: const Text(
+              'NOW',
+              style: TextStyle(
+                color: ChronoTheme.primary,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Container(
-              height: 1.5,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    ChronoTheme.cyan,
-                    ChronoTheme.cyan.withOpacity(0.0),
-                  ],
-                ),
-              ),
+              height: 1.0,
+              color: ChronoTheme.primary.withOpacity(0.4),
             ),
           ),
+          const SizedBox(width: 8),
           Text(
             IntervalMath.formatMinuteOfDay(event.minute),
             style: const TextStyle(
-              color: ChronoTheme.cyan,
-              fontSize: 11,
+              color: ChronoTheme.primary,
+              fontSize: 10.5,
               fontFamily: ChronoTheme.monoFont,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -684,137 +613,102 @@ class _TimelineItemWidget extends StatelessWidget {
 
   Widget _buildDoseItem(BuildContext context, ScheduledDose dose) {
     final isTaken = dose.status == DoseStatus.taken;
-    final isDue = dose.status == DoseStatus.due;
 
-    final statusColor = isTaken
-        ? ChronoTheme.emerald
-        : isDue
-            ? ChronoTheme.cyan
-            : ChronoTheme.amber;
-
-    return InkWell(
-      onTap: () => _openDoseDetailSheet(context, dose, state),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isTaken ? ChronoTheme.surface : ChronoTheme.surfaceCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isTaken
-                ? ChronoTheme.border
-                : isDue
-                    ? ChronoTheme.cyan.withOpacity(0.6)
-                    : ChronoTheme.border,
-            width: isDue ? 1.5 : 1.0,
-          ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isTaken ? ChronoTheme.surface : ChronoTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+        border: Border.all(
+          color: isTaken ? ChronoTheme.borderSubtle : ChronoTheme.border,
+          width: 1.0,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      child: InkWell(
+        onTap: () => _openDoseDetailSheet(context, dose, state),
+        borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+        child: Row(
           children: [
-            // Top Row: Time, Status Chip, and Mark Taken Action
-            Row(
-              children: [
-                // Time Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.surfaceElevated,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: statusColor.withOpacity(0.4)),
-                  ),
-                  child: Text(
-                    dose.formattedTime,
-                    style: TextStyle(
-                      color: isTaken ? ChronoTheme.textDim : statusColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      fontFamily: ChronoTheme.monoFont,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // Status Badge
-                ChronoTheme.badge(
-                  dose.status.displayName.toUpperCase(),
-                  statusColor,
-                ),
-
-                const Spacer(),
-
-                // One-touch Checkmark Button
-                IconButton(
-                  onPressed: isTaken ? null : () => state.markDoseTaken(dose.medicationId),
-                  icon: Icon(
-                    isTaken ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                    color: isTaken ? ChronoTheme.emerald : ChronoTheme.textMuted,
-                    size: 24,
-                  ),
-                  tooltip: isTaken ? 'Taken' : 'Mark as Taken',
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // Medication Name & Dosage
-            Text(
-              '${dose.medicationName} (${dose.dosage})',
-              style: TextStyle(
-                color: isTaken ? ChronoTheme.textMuted : ChronoTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                decoration: isTaken ? TextDecoration.lineThrough : null,
-              ),
-            ),
-
-            const SizedBox(height: 6),
-
-            // Food & Safety Pill
+            // Time Pill
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: ChronoTheme.surfaceElevated,
+                color: isTaken ? ChronoTheme.surfaceElevated : ChronoTheme.cyanSurface,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Text(
+                dose.formattedTime,
+                style: TextStyle(
+                  color: isTaken ? ChronoTheme.textDim : ChronoTheme.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: ChronoTheme.monoFont,
+                  decoration: isTaken ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.restaurant_rounded,
-                    size: 12,
-                    color: isTaken ? ChronoTheme.textDim : ChronoTheme.cyan,
-                  ),
-                  const SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      dose.safeFoodWindowNote,
-                      style: TextStyle(
-                        color: isTaken ? ChronoTheme.textDim : ChronoTheme.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    '${dose.medicationName} (${dose.dosage})',
+                    style: TextStyle(
+                      color: isTaken ? ChronoTheme.textMuted : ChronoTheme.textPrimary,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      decoration: isTaken ? TextDecoration.lineThrough : null,
                     ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.restaurant_outlined,
+                        size: 11,
+                        color: isTaken ? ChronoTheme.textDim : ChronoTheme.textMuted,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          dose.safeFoodWindowNote,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isTaken ? ChronoTheme.textDim : ChronoTheme.textSecondary,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 6),
+            const SizedBox(width: 8),
 
-            // Clinical Instruction
-            Text(
-              dose.clinicalInstruction,
-              style: const TextStyle(
-                color: ChronoTheme.textDim,
-                fontSize: 11.5,
-                height: 1.3,
+            // Checkmark Circle Action
+            GestureDetector(
+              onTap: isTaken ? null : () => state.markDoseTaken(dose.medicationId),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: isTaken ? ChronoTheme.emeraldSurface : Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isTaken ? ChronoTheme.secondary : ChronoTheme.border,
+                    width: 1.5,
+                  ),
+                ),
+                child: isTaken
+                    ? const Icon(Icons.check_rounded, color: ChronoTheme.secondary, size: 16)
+                    : null,
               ),
             ),
           ],
@@ -824,60 +718,34 @@ class _TimelineItemWidget extends StatelessWidget {
   }
 
   Widget _buildMealItem(MealAnchor meal) {
-    final icon = meal.type == MealType.breakfast
-        ? '🍳'
-        : meal.type == MealType.lunch
-            ? '🥗'
-            : '🍲';
-
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
-        color: ChronoTheme.emerald.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ChronoTheme.emerald.withOpacity(0.25)),
+        color: ChronoTheme.surfaceElevated,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: ChronoTheme.borderSubtle),
       ),
       child: Row(
         children: [
-          Text(icon, style: const TextStyle(fontSize: 18)),
+          const Icon(Icons.restaurant_outlined, size: 14, color: ChronoTheme.secondary),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${meal.displayName} Window',
-                  style: const TextStyle(
-                    color: Color(0xFF6EE7B7),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  '${IntervalMath.formatMinuteOfDay(meal.startTimeMinutes)} – ${IntervalMath.formatMinuteOfDay(meal.endTimeMinutes)} (${meal.durationMinutes} min meal buffer)',
-                  style: TextStyle(
-                    color: const Color(0xFF6EE7B7).withOpacity(0.7),
-                    fontSize: 11,
-                    fontFamily: ChronoTheme.monoFont,
-                  ),
-                ),
-              ],
+            child: Text(
+              '${meal.displayName} Window',
+              style: const TextStyle(
+                color: ChronoTheme.textPrimary,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: ChronoTheme.emerald.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Text(
-              'MEAL',
-              style: TextStyle(
-                color: Color(0xFF6EE7B7),
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-              ),
+          Text(
+            '${IntervalMath.formatMinuteOfDay(meal.startTimeMinutes)} – ${IntervalMath.formatMinuteOfDay(meal.endTimeMinutes)}',
+            style: const TextStyle(
+              color: ChronoTheme.textSecondary,
+              fontSize: 11,
+              fontFamily: ChronoTheme.monoFont,
             ),
           ),
         ],
@@ -887,35 +755,34 @@ class _TimelineItemWidget extends StatelessWidget {
 
   Widget _buildRoutineMilestone(_TimelineEvent ev) {
     final isWake = ev.type == _EventType.wake;
-    final color = isWake ? ChronoTheme.amber : const Color(0xFF818CF8);
-    final icon = isWake ? Icons.wb_sunny_rounded : Icons.bedtime_rounded;
+    final icon = isWake ? Icons.wb_sunny_outlined : Icons.bedtime_outlined;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2)),
+        color: ChronoTheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: ChronoTheme.borderSubtle),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: color),
+          Icon(icon, size: 14, color: ChronoTheme.textMuted),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               '${ev.title} • ${IntervalMath.formatMinuteOfDay(ev.minute)}',
-              style: TextStyle(
-                color: color,
+              style: const TextStyle(
+                color: ChronoTheme.textSecondary,
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Text(
             ev.subtitle,
-            style: TextStyle(
-              color: color.withOpacity(0.7),
+            style: const TextStyle(
+              color: ChronoTheme.textDim,
               fontSize: 10.5,
             ),
           ),
@@ -928,7 +795,7 @@ class _TimelineItemWidget extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: ChronoTheme.surfaceCard,
+      backgroundColor: ChronoTheme.surfaceElevated,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -937,7 +804,7 @@ class _TimelineItemWidget extends StatelessWidget {
   }
 }
 
-// ── 5. Secondary 24h Circadian Canvas View ────────────────────────────────────
+// ── 5. Secondary 24h Circadian Map View ───────────────────────────────────────
 
 class _CircadianMapView extends StatefulWidget {
   final AppState state;
@@ -969,7 +836,7 @@ class _CircadianMapViewState extends State<_CircadianMapView> {
 
   void _onCanvasTap(TapUpDetails details, Size canvasSize) {
     const heightPerMinute = 1680.0 / 1440.0;
-    const gutterWidth = 54.0;
+    const gutterWidth = 52.0;
     final tapX = details.localPosition.dx;
     final tapY = details.localPosition.dy + _scrollController.offset;
 
@@ -989,7 +856,7 @@ class _CircadianMapViewState extends State<_CircadianMapView> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: ChronoTheme.surfaceCard,
+      backgroundColor: ChronoTheme.surfaceElevated,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1001,7 +868,7 @@ class _CircadianMapViewState extends State<_CircadianMapView> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Legend Bar
+        // Subtle Legend
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           color: ChronoTheme.surface,
@@ -1009,15 +876,13 @@ class _CircadianMapViewState extends State<_CircadianMapView> {
             spacing: 12,
             runSpacing: 4,
             children: [
-              _LegendDot(color: ChronoTheme.emerald, label: 'Meal Window'),
-              _LegendDot(color: Color(0xFFF43F5E), label: 'Fasting Buffer'),
-              _LegendDot(color: ChronoTheme.amber, label: 'Scheduled Dose'),
-              _LegendDot(color: Color(0xFF818CF8), label: 'Sleep Zone'),
-              _LegendDot(color: ChronoTheme.cyan, label: 'Current Now'),
+              _LegendDot(color: ChronoTheme.secondary, label: 'Meal Window'),
+              _LegendDot(color: ChronoTheme.rose, label: 'Fasting Buffer'),
+              _LegendDot(color: ChronoTheme.primary, label: 'Scheduled Dose'),
+              _LegendDot(color: ChronoTheme.textMuted, label: 'Sleep Zone'),
             ],
           ),
         ),
-        // Canvas
         Expanded(
           child: GestureDetector(
             onTapUp: (details) {
@@ -1066,8 +931,8 @@ class _LegendDot extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 8,
-          height: 8,
+          width: 7,
+          height: 7,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
@@ -1097,7 +962,7 @@ class _DoseDetailSheet extends StatelessWidget {
         children: [
           Center(
             child: Container(
-              width: 36,
+              width: 32,
               height: 4,
               decoration: BoxDecoration(
                 color: ChronoTheme.border,
@@ -1111,7 +976,7 @@ class _DoseDetailSheet extends StatelessWidget {
               Text(
                 dose.formattedTime,
                 style: const TextStyle(
-                  color: ChronoTheme.cyan,
+                  color: ChronoTheme.primary,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   fontFamily: ChronoTheme.monoFont,
@@ -1120,7 +985,7 @@ class _DoseDetailSheet extends StatelessWidget {
               const SizedBox(width: 10),
               ChronoTheme.badge(
                 isTaken ? 'TAKEN' : 'SCHEDULED',
-                isTaken ? ChronoTheme.emerald : ChronoTheme.amber,
+                isTaken ? ChronoTheme.secondary : ChronoTheme.primary,
               ),
             ],
           ),
@@ -1129,21 +994,21 @@ class _DoseDetailSheet extends StatelessWidget {
             '${dose.medicationName} (${dose.dosage})',
             style: const TextStyle(
               color: ChronoTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 14),
           _DetailRow(
             icon: Icons.info_outline_rounded,
-            color: ChronoTheme.cyan,
+            color: ChronoTheme.primary,
             title: 'Clinical Instruction',
             text: dose.clinicalInstruction,
           ),
           const SizedBox(height: 10),
           _DetailRow(
-            icon: Icons.restaurant_menu_rounded,
-            color: ChronoTheme.emerald,
+            icon: Icons.restaurant_outlined,
+            color: ChronoTheme.secondary,
             title: 'Food & Nutrition Buffer',
             text: dose.safeFoodWindowNote,
           ),
@@ -1156,13 +1021,13 @@ class _DoseDetailSheet extends StatelessWidget {
                   state.markDoseTaken(dose.medicationId);
                   Navigator.pop(context);
                 },
-                icon: const Icon(Icons.check_circle_rounded),
+                icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
                 label: const Text('Mark as Taken Now', style: TextStyle(fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: ChronoTheme.emerald,
+                  backgroundColor: ChronoTheme.secondary,
                   foregroundColor: ChronoTheme.obsidian,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
@@ -1190,28 +1055,20 @@ class _DetailRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 10),
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 2),
               Text(
                 text,
-                style: const TextStyle(
-                  color: ChronoTheme.textSecondary,
-                  fontSize: 13,
-                  height: 1.35,
-                ),
+                style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 13, height: 1.35),
               ),
             ],
           ),
@@ -1233,15 +1090,11 @@ class _ConflictPlaceholder extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.warning_amber_rounded, color: ChronoTheme.rose, size: 48),
-            const SizedBox(height: 12),
+            const Icon(Icons.warning_amber_rounded, color: ChronoTheme.rose, size: 40),
+            const SizedBox(height: 10),
             const Text(
               'Schedule Conflict Detected',
-              style: TextStyle(
-                color: ChronoTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-              ),
+              style: TextStyle(color: ChronoTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1255,8 +1108,6 @@ class _ConflictPlaceholder extends StatelessWidget {
     );
   }
 }
-
-// ── 7. Timeline Event Data Models ─────────────────────────────────────────────
 
 enum _EventType {
   wake,
