@@ -3,6 +3,7 @@ import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import '../../../main.dart' show defaultRoutine, defaultMedications;
+import '../../medications/presentation/interaction_matrix_sheet.dart';
 import 'physician_summary_sheet.dart';
 
 /// Phase 6: Elevated Clinical Settings & Engine Telemetry Screen
@@ -70,7 +71,20 @@ class SettingsScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // Section 4: Zero-Hallucination Clinical Mandate
+                  // Section 4: Pharmacokinetic Safety Matrix
+                  const _SectionHeader(
+                    title: 'PHARMACOKINETIC SAFETY MATRIX',
+                    subtitle: 'Pairwise chelation & bioavailability audit',
+                    icon: Icons.hub_outlined,
+                  ),
+                  const SizedBox(height: 10),
+                  _SafetyMatrixSettingsCard(
+                    onTap: () => InteractionMatrixSheet.show(context, state),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Section 5: Zero-Hallucination Clinical Mandate
                   const _SectionHeader(
                     title: 'CLINICAL SAFETY MANDATE',
                     subtitle: 'Deterministic guarantees vs AI hallucination',
@@ -1024,4 +1038,119 @@ class _PhysicianExportCard extends StatelessWidget {
     );
   }
 }
+
+// ── Safety Matrix Settings Card ───────────────────────────────────────────────
+
+class _SafetyMatrixSettingsCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _SafetyMatrixSettingsCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: ChronoTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ChronoTheme.border),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: ChronoTheme.secondary.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: ChronoTheme.secondary.withOpacity(0.3)),
+                  ),
+                  child: const Icon(
+                    Icons.hub_outlined,
+                    color: ChronoTheme.secondary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Pharmacokinetic Safety Matrix',
+                              style: TextStyle(
+                                color: ChronoTheme.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: ChronoTheme.secondary.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              '100% Guarded',
+                              style: TextStyle(
+                                color: ChronoTheme.secondary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Audit pairwise chelation separation gaps, absorption competition, and chronobiological peak alignments for your active polypharmacy regimen.',
+                        style: TextStyle(
+                          color: ChronoTheme.textSecondary,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Row(
+                        children: [
+                          Text(
+                            'Open Interactive Safety Matrix',
+                            style: TextStyle(
+                              color: ChronoTheme.secondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 14,
+                            color: ChronoTheme.secondary,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 

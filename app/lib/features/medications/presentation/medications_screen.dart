@@ -5,6 +5,7 @@ import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import '../../settings/presentation/physician_summary_sheet.dart';
 import 'add_medication_dialog.dart';
+import 'interaction_matrix_sheet.dart';
 
 enum _MedFilter { all, emptyStomach, withFood, cationConflict }
 
@@ -64,6 +65,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
               totalCount: allMeds.length,
               onAddPressed: () => _showAddDialog(context, state),
               onExportPressed: () => PhysicianSummarySheet.show(context, state),
+              onMatrixPressed: () => InteractionMatrixSheet.show(context, state),
             ),
 
             // Search & Filter Section
@@ -155,6 +157,10 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _MedicationDetailSheet(
         med: med,
+        onOpenMatrix: () {
+          Navigator.pop(context);
+          InteractionMatrixSheet.show(context, state);
+        },
         onDelete: () {
           Navigator.pop(context);
           _confirmDelete(context, med, state);
@@ -223,11 +229,13 @@ class _CabinetHeader extends StatelessWidget {
   final int totalCount;
   final VoidCallback onAddPressed;
   final VoidCallback onExportPressed;
+  final VoidCallback onMatrixPressed;
 
   const _CabinetHeader({
     required this.totalCount,
     required this.onAddPressed,
     required this.onExportPressed,
+    required this.onMatrixPressed,
   });
 
   @override
@@ -263,12 +271,42 @@ class _CabinetHeader extends StatelessWidget {
             ],
           ),
           const Spacer(),
+          // Pharmacokinetic Safety Matrix Button
+          InkWell(
+            onTap: onMatrixPressed,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: ChronoTheme.secondary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: ChronoTheme.secondary.withOpacity(0.3)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.hub_outlined, size: 12, color: ChronoTheme.secondary),
+                  SizedBox(width: 4),
+                  Text(
+                    'Safety',
+                    style: TextStyle(
+                      color: ChronoTheme.secondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
           // EHR Summary Button
           InkWell(
             onTap: onExportPressed,
             borderRadius: BorderRadius.circular(14),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
                 color: ChronoTheme.primary.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(14),
@@ -292,7 +330,7 @@ class _CabinetHeader extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
@@ -644,10 +682,12 @@ class _RulePill extends StatelessWidget {
 
 class _MedicationDetailSheet extends StatelessWidget {
   final Medication med;
+  final VoidCallback onOpenMatrix;
   final VoidCallback onDelete;
 
   const _MedicationDetailSheet({
     required this.med,
+    required this.onOpenMatrix,
     required this.onDelete,
   });
 
@@ -795,7 +835,30 @@ class _MedicationDetailSheet extends StatelessWidget {
             ),
           ],
 
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
+
+          // Inspect in Safety Matrix
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: OutlinedButton.icon(
+              onPressed: onOpenMatrix,
+              icon: const Icon(Icons.hub_outlined, size: 16),
+              label: const Text(
+                'Inspect in Pharmacokinetic Safety Matrix',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: ChronoTheme.primary,
+                side: BorderSide(color: ChronoTheme.primary.withOpacity(0.35)),
+                backgroundColor: ChronoTheme.primary.withOpacity(0.06),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
 
           // Remove Button
           SizedBox(
