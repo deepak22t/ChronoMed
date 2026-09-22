@@ -4,12 +4,24 @@ import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 
-/// Dashboard — Primary "Today" Screen (Calm Health Aesthetic).
+/// Dashboard — Primary "Today" Screen (Phase 2 Masterwork).
 ///
-/// Features a gentle, zero-glare circadian hero overview,
-/// high-legibility dose cards, and smooth one-touch checkmark logging.
-class DashboardScreen extends StatelessWidget {
+/// Features:
+/// 1. Symmetrical Circadian Adherence Dial.
+/// 2. Interactive Filter Chips (All / Pending / Taken).
+/// 3. Tactile Spring-Animated Checkbox with haptic feel.
+/// 4. Rich Clinical Detail Bottom Sheet on Card Tap.
+/// 5. Overslept Schedule Shift Alert with 1-Tap Reset.
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  // 0 = All, 1 = Pending, 2 = Taken
+  int _filterIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -21,10 +33,15 @@ class DashboardScreen extends StatelessWidget {
         child: Column(
           children: [
             _DashboardHeader(state: state),
+            if (state.isOversleptMode) _OversleptShiftBanner(state: state),
             Expanded(
               child: state.hasConflict
                   ? _ConflictBanner(conflict: state.conflict!)
-                  : _DoseListBody(state: state),
+                  : _DoseListBody(
+                      state: state,
+                      filterIndex: _filterIndex,
+                      onFilterChanged: (idx) => setState(() => _filterIndex = idx),
+                    ),
             ),
           ],
         ),
@@ -33,17 +50,17 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-// ── 1. Quiet Header ─────────────────────────────────────────────────────────
+// ── 1. Quiet Header with Circadian Dial ──────────────────────────────────────
 
 class _DashboardHeader extends StatelessWidget {
   final AppState state;
   const _DashboardHeader({required this.state});
 
   String _getPhase(int minute) {
-    if (minute < 360) return 'Night Rest';
-    if (minute < 720) return 'Morning Surge';
-    if (minute < 1020) return 'Midday Phase';
-    if (minute < 1320) return 'Evening Buffer';
+    if (minute < 360) return 'Night Rest Window';
+    if (minute < 720) return 'Morning Surge Phase';
+    if (minute < 1020) return 'Midday Metabolic Phase';
+    if (minute < 1320) return 'Evening Nutritional Buffer';
     return 'Bedtime Preparation';
   }
 
@@ -77,10 +94,11 @@ class _DashboardHeader extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                       decoration: BoxDecoration(
                         color: ChronoTheme.cyanSurface,
                         borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: ChronoTheme.primary.withOpacity(0.25)),
                       ),
                       child: Text(
                         phaseStr,
@@ -93,7 +111,7 @@ class _DashboardHeader extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     const Icon(Icons.access_time_rounded, size: 12, color: ChronoTheme.textMuted),
@@ -108,6 +126,8 @@ class _DashboardHeader extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    Container(width: 3, height: 3, decoration: const BoxDecoration(color: ChronoTheme.textDim, shape: BoxShape.circle)),
+                    const SizedBox(width: 8),
                     Text(
                       '${state.lastSolveDurationMs}ms solver',
                       style: const TextStyle(color: ChronoTheme.textDim, fontSize: 11),
@@ -117,7 +137,7 @@ class _DashboardHeader extends StatelessWidget {
               ],
             ),
           ),
-          // Symmetrical Adherence Dial
+          // Symmetrical Circular Adherence Dial
           _AdherenceDial(
             ratio: state.adherenceRatio,
             taken: state.takenCount,
@@ -169,18 +189,67 @@ class _AdherenceDial extends StatelessWidget {
   }
 }
 
-// ── 2. Dose List Body ───────────────────────────────────────────────────────
+// ── 2. Overslept Schedule Shift Alert Banner ──────────────────────────────────
 
-class _DoseListBody extends StatelessWidget {
+class _OversleptShiftBanner extends StatelessWidget {
   final AppState state;
-  const _DoseListBody({required this.state});
+  const _OversleptShiftBanner({required this.state});
 
   @override
   Widget build(BuildContext context) {
-    final doses = state.doses;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: const BoxDecoration(
+        color: ChronoTheme.cyanSurface,
+        border: Border(bottom: BorderSide(color: ChronoTheme.border)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 14, color: ChronoTheme.primary),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Schedule shifted by +2h 15m to preserve clinical meal buffers.',
+              style: TextStyle(color: ChronoTheme.primary, fontSize: 11.5, fontWeight: FontWeight.w500),
+            ),
+          ),
+          InkWell(
+            onTap: () => state.resetOverslept(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: ChronoTheme.surfaceElevated,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
+              ),
+              child: const Text('Reset', style: TextStyle(color: ChronoTheme.textPrimary, fontSize: 11, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 3. Dose List Body with Filter Chips ───────────────────────────────────────
+
+class _DoseListBody extends StatelessWidget {
+  final AppState state;
+  final int filterIndex;
+  final ValueChanged<int> onFilterChanged;
+
+  const _DoseListBody({
+    required this.state,
+    required this.filterIndex,
+    required this.onFilterChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final allDoses = state.doses;
     final nextDose = state.nextDose;
 
-    if (doses.isEmpty) {
+    if (allDoses.isEmpty) {
       return const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -198,30 +267,63 @@ class _DoseListBody extends StatelessWidget {
       );
     }
 
+    final filteredDoses = switch (filterIndex) {
+      1 => allDoses.where((d) => d.status != DoseStatus.taken).toList(),
+      2 => allDoses.where((d) => d.status == DoseStatus.taken).toList(),
+      _ => allDoses,
+    };
+
+    final pendingCount = allDoses.where((d) => d.status != DoseStatus.taken).length;
+    final takenCount = state.takenCount;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       children: [
         // 1. Next Dose Calm Hero Banner
-        if (nextDose != null) ...[
+        if (nextDose != null && filterIndex != 2) ...[
           _NextDoseHero(dose: nextDose, state: state),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
         ],
 
-        // 2. Section Header
+        // 2. Filter Pills Row
+        Row(
+          children: [
+            _FilterPill(
+              label: 'All (${allDoses.length})',
+              isSelected: filterIndex == 0,
+              onTap: () => onFilterChanged(0),
+            ),
+            const SizedBox(width: 8),
+            _FilterPill(
+              label: 'Pending ($pendingCount)',
+              isSelected: filterIndex == 1,
+              onTap: () => onFilterChanged(1),
+            ),
+            const SizedBox(width: 8),
+            _FilterPill(
+              label: 'Taken ($takenCount)',
+              isSelected: filterIndex == 2,
+              onTap: () => onFilterChanged(2),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // 3. Section Title
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'TODAY\'S DOSES',
+              'DAILY REGIMEN',
               style: TextStyle(
                 color: ChronoTheme.textMuted,
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
               ),
             ),
             Text(
-              '${state.takenCount} of ${state.totalDoses} taken',
+              '$takenCount of ${allDoses.length} completed',
               style: const TextStyle(
                 color: ChronoTheme.secondary,
                 fontSize: 11,
@@ -232,14 +334,63 @@ class _DoseListBody extends StatelessWidget {
         ),
         const SizedBox(height: 10),
 
-        // 3. Dose Cards
-        ...doses.map((dose) => _CalmDoseCard(dose: dose, state: state)),
+        // 4. Dose Cards
+        if (filteredDoses.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            alignment: Alignment.center,
+            child: Text(
+              filterIndex == 1 ? '🎉 No pending doses remaining!' : 'No doses in this category.',
+              style: const TextStyle(color: ChronoTheme.textMuted, fontSize: 13),
+            ),
+          )
+        else
+          ...filteredDoses.map((dose) => _CalmDoseCard(dose: dose, state: state)),
       ],
     );
   }
 }
 
-// ── 3. Next Dose Hero Card (Gentle, Restorative) ─────────────────────────────
+class _FilterPill extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _FilterPill({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? ChronoTheme.cyanSurface : ChronoTheme.surfaceElevated,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? ChronoTheme.primary.withOpacity(0.4) : ChronoTheme.border,
+            width: 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? ChronoTheme.primary : ChronoTheme.textMuted,
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── 4. Next Dose Hero Banner ──────────────────────────────────────────────────
 
 class _NextDoseHero extends StatelessWidget {
   final ScheduledDose dose;
@@ -261,7 +412,7 @@ class _NextDoseHero extends StatelessWidget {
       decoration: BoxDecoration(
         color: ChronoTheme.surfaceCard,
         borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
-        border: Border.all(color: ChronoTheme.primary.withOpacity(0.3), width: 1.0),
+        border: Border.all(color: ChronoTheme.primary.withOpacity(0.35), width: 1.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,7 +429,7 @@ class _NextDoseHero extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               const Text(
-                'NEXT SCHEDULED DOSE',
+                'UPCOMING DOSE',
                 style: TextStyle(
                   color: ChronoTheme.primary,
                   fontSize: 10.5,
@@ -287,12 +438,19 @@ class _NextDoseHero extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Text(
-                countdown,
-                style: const TextStyle(
-                  color: ChronoTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: ChronoTheme.cyanSurface,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  countdown,
+                  style: const TextStyle(
+                    color: ChronoTheme.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -300,12 +458,11 @@ class _NextDoseHero extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              // Time Capsule
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
                   color: ChronoTheme.surfaceElevated,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   dose.formattedTime,
@@ -326,7 +483,7 @@ class _NextDoseHero extends StatelessWidget {
                       '${dose.medicationName} (${dose.dosage})',
                       style: const TextStyle(
                         color: ChronoTheme.textPrimary,
-                        fontSize: 16,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -346,7 +503,6 @@ class _NextDoseHero extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          // Action Buttons
           Row(
             children: [
               Expanded(
@@ -385,7 +541,7 @@ class _NextDoseHero extends StatelessWidget {
   }
 }
 
-// ── 4. Tactile Dose Card (Symmetrical & Clean) ───────────────────────────────
+// ── 5. Tactile Dose Card (Spring Animated & Sheet Trigger) ───────────────────
 
 class _CalmDoseCard extends StatelessWidget {
   final ScheduledDose dose;
@@ -409,7 +565,7 @@ class _CalmDoseCard extends StatelessWidget {
         ),
       ),
       child: InkWell(
-        onTap: () => state.markDoseTaken(dose.medicationId),
+        onTap: () => _openDetailSheet(context),
         borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
         child: Row(
           children: [
@@ -475,34 +631,198 @@ class _CalmDoseCard extends StatelessWidget {
 
             const SizedBox(width: 8),
 
-            // Checkmark Action Circle
-            GestureDetector(
-              onTap: isTaken ? null : () => state.markDoseTaken(dose.medicationId),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: isTaken ? ChronoTheme.emeraldSurface : Colors.transparent,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isTaken ? ChronoTheme.secondary : ChronoTheme.border,
-                    width: 1.5,
-                  ),
-                ),
-                child: isTaken
-                    ? const Icon(Icons.check_rounded, color: ChronoTheme.secondary, size: 16)
-                    : null,
-              ),
+            // Spring Animated Checkmark Button
+            _TactileCheckButton(
+              isTaken: isTaken,
+              onToggle: () => state.markDoseTaken(dose.medicationId),
             ),
           ],
         ),
       ),
     );
   }
+
+  void _openDetailSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ChronoTheme.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _TodayDoseDetailSheet(dose: dose, state: state),
+    );
+  }
 }
 
-// ── 5. Conflict State ───────────────────────────────────────────────────────
+class _TactileCheckButton extends StatelessWidget {
+  final bool isTaken;
+  final VoidCallback onToggle;
+
+  const _TactileCheckButton({required this.isTaken, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isTaken ? null : onToggle,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutBack,
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          color: isTaken ? ChronoTheme.emeraldSurface : Colors.transparent,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isTaken ? ChronoTheme.secondary : ChronoTheme.border,
+            width: 1.5,
+          ),
+        ),
+        child: isTaken
+            ? const Icon(Icons.check_rounded, color: ChronoTheme.secondary, size: 17)
+            : null,
+      ),
+    );
+  }
+}
+
+// ── 6. Dose Detail Modal Sheet ────────────────────────────────────────────────
+
+class _TodayDoseDetailSheet extends StatelessWidget {
+  final ScheduledDose dose;
+  final AppState state;
+
+  const _TodayDoseDetailSheet({required this.dose, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final isTaken = dose.status == DoseStatus.taken;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 32,
+              height: 4,
+              decoration: BoxDecoration(
+                color: ChronoTheme.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                dose.formattedTime,
+                style: const TextStyle(
+                  color: ChronoTheme.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: ChronoTheme.monoFont,
+                ),
+              ),
+              const SizedBox(width: 10),
+              ChronoTheme.badge(
+                isTaken ? 'TAKEN' : 'SCHEDULED',
+                isTaken ? ChronoTheme.secondary : ChronoTheme.primary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${dose.medicationName} (${dose.dosage})',
+            style: const TextStyle(
+              color: ChronoTheme.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _DetailRow(
+            icon: Icons.info_outline_rounded,
+            color: ChronoTheme.primary,
+            title: 'Clinical Instruction',
+            text: dose.clinicalInstruction,
+          ),
+          const SizedBox(height: 10),
+          _DetailRow(
+            icon: Icons.restaurant_outlined,
+            color: ChronoTheme.secondary,
+            title: 'Food & Nutrition Buffer',
+            text: dose.safeFoodWindowNote,
+          ),
+          const SizedBox(height: 20),
+          if (!isTaken)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  state.markDoseTaken(dose.medicationId);
+                  Navigator.pop(context);
+                },
+                icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                label: const Text('Mark as Taken Now', style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ChronoTheme.secondary,
+                  foregroundColor: ChronoTheme.obsidian,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String text;
+
+  const _DetailRow({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                text,
+                style: const TextStyle(color: ChronoTheme.textSecondary, fontSize: 13, height: 1.35),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── 7. Conflict State ───────────────────────────────────────────────────────
 
 class _ConflictBanner extends StatelessWidget {
   final InfeasibleConflict conflict;
