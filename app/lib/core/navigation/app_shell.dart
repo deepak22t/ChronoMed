@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import '../theme/chrono_theme.dart';
 import '../../../features/dashboard/presentation/dashboard_screen.dart';
-import '../../../features/timeline/presentation/timeline_screen.dart';
 import '../../../features/medications/presentation/medications_screen.dart';
-import '../../../features/routine/presentation/routine_screen.dart';
 import '../../../features/settings/presentation/settings_screen.dart';
 
-/// Responsive App Shell (Calm Health Aesthetic).
+/// Responsive App Shell — 3-tab navigation.
 ///
-/// Features a gentle, feather-weight bottom navigation bar for mobile (< 640px)
-/// with subtle active dot indicators, and a calm, quiet sidebar for desktop (>= 640px).
+/// Today · Medications · Settings
+/// Mobile < 640px: bottom nav bar.
+/// Desktop >= 640px: 76px sidebar rail.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -22,18 +21,14 @@ class _AppShellState extends State<AppShell> {
 
   static const _screens = [
     DashboardScreen(),
-    TimelineScreen(),
     MedicationsScreen(),
-    RoutineScreen(),
     SettingsScreen(),
   ];
 
   static const _navItems = [
-    (icon: Icons.today_outlined, activeIcon: Icons.today_rounded, label: 'Today'),
-    (icon: Icons.schedule_outlined, activeIcon: Icons.schedule_rounded, label: 'Timeline'),
-    (icon: Icons.medication_outlined, activeIcon: Icons.medication_rounded, label: 'Meds'),
-    (icon: Icons.bedtime_outlined, activeIcon: Icons.bedtime_rounded, label: 'Routine'),
-    (icon: Icons.tune_outlined, activeIcon: Icons.tune_rounded, label: 'Settings'),
+    (icon: Icons.today_outlined,      activeIcon: Icons.today_rounded,      label: 'Today'),
+    (icon: Icons.medication_outlined,  activeIcon: Icons.medication_rounded,  label: 'Medications'),
+    (icon: Icons.tune_outlined,        activeIcon: Icons.tune_rounded,        label: 'Settings'),
   ];
 
   @override
@@ -70,7 +65,7 @@ class _AppShellState extends State<AppShell> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                // Calm Monogram
+                // App monogram — C for ChronoMed
                 Container(
                   width: 36,
                   height: 36,
@@ -80,11 +75,18 @@ class _AppShellState extends State<AppShell> {
                     border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
                   ),
                   child: const Center(
-                    child: Icon(Icons.blur_circular_rounded, color: ChronoTheme.primary, size: 20),
+                    child: Text(
+                      'C',
+                      style: TextStyle(
+                        color: ChronoTheme.primary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: ChronoTheme.monoFont,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Nav Items
                 Expanded(
                   child: ListView.separated(
                     itemCount: _navItems.length,
@@ -130,9 +132,7 @@ class _AppShellState extends State<AppShell> {
               ],
             ),
           ),
-          Expanded(
-            child: _buildBody(),
-          ),
+          Expanded(child: _buildBody()),
         ],
       ),
     );
@@ -163,7 +163,7 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-// ── Gentle Calm Bottom Navigation Bar ───────────────────────────────────────
+// ── Bottom Navigation Bar ─────────────────────────────────────────────────────
 
 class _CalmBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -213,7 +213,6 @@ class _CalmBottomNav extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  // Subtle Active Dot Indicator
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.easeInOut,

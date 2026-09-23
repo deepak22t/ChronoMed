@@ -1,111 +1,215 @@
 import 'package:flutter/material.dart';
+import 'package:core_engine/core_engine.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import '../../../main.dart' show defaultRoutine, defaultMedications;
 import '../../dashboard/presentation/missed_dose_protocol_sheet.dart';
-import '../../medications/presentation/interaction_matrix_sheet.dart';
 import 'physician_summary_sheet.dart';
 
-/// Phase 6: Elevated Clinical Settings & Engine Telemetry Screen
+/// Settings screen — routine anchors, clinical care, and danger zone.
 ///
-/// Implements Calm Health design principles:
-/// - Real-Time Deterministic Engine Telemetry (Latency, Prescriptions, Adherence).
-/// - Dynamic Simulation Lab (Overslept +2h 15m with toggle & live reset).
-/// - Zero-Hallucination Clinical Mandate Architecture.
-/// - Symmetrical System Specifications & Build Telemetry.
-/// - Zero cartoon emojis; pure medical-grade vector outline icons.
-class SettingsScreen extends StatelessWidget {
+/// Absorbs the Routine screen (wake/sleep/meal times) as the first section.
+/// Removes: engine telemetry, system specs, zero-hallucination mandate card,
+/// AOT ENGINE ONLINE badge, simulation lab as a top-level section.
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  // Routine state (mirrors RoutineScreen logic, preserved exactly)
+  late int _wakeMinutes;
+  late int _sleepMinutes;
+  late int _breakfastMinutes;
+  late int _lunchMinutes;
+  late int _dinnerMinutes;
+  bool _isDirty = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isDirty) _syncFromState();
+  }
+
+  void _syncFromState() {
+    final routine = AppStateProvider.of(context).routine;
+    final meals = routine.meals;
+    setState(() {
+      _wakeMinutes     = routine.wakeTimeMinutes;
+      _sleepMinutes    = routine.sleepTimeMinutes;
+      _breakfastMinutes = meals.firstWhere(
+        (m) => m.type == MealType.breakfast,
+        orElse: () => const MealAnchor(id: '_', type: MealType.breakfast, startTimeMinutes: 510),
+      ).startTimeMinutes;
+      _lunchMinutes = meals.firstWhere(
+        (m) => m.type == MealType.lunch,
+        orElse: () => const MealAnchor(id: '_', type: MealType.lunch, startTimeMinutes: 780),
+      ).startTimeMinutes;
+      _dinnerMinutes = meals.firstWhere(
+        (m) => m.type == MealType.dinner,
+        orElse: () => const MealAnchor(id: '_', type: MealType.dinner, startTimeMinutes: 1170),
+      ).startTimeMinutes;
+      _isDirty = false;
+    });
+  }
+
+  void _saveRoutine(AppState state) {
+    if (_wakeMinutes >= _sleepMinutes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Wake time must precede sleep time.'),
+          backgroundColor: ChronoTheme.surfaceElevated,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: ChronoTheme.rose),
+          ),
+        ),
+      );
+      return;
+    }
+    final newRoutine = Routine(
+      id: 'routine_custom',
+      userId: 'user_1',
+      wakeTimeMinutes: _wakeMinutes,
+      sleepTimeMinutes: _sleepMinutes,
+      meals: [
+        MealAnchor(id: 'm1', type: MealType.breakfast, startTimeMinutes: _breakfastMinutes),
+        MealAnchor(id: 'm2', type: MealType.lunch,     startTimeMinutes: _lunchMinutes),
+        MealAnchor(id: 'm3', type: MealType.dinner,    startTimeMinutes: _dinnerMinutes, durationMinutes: 45),
+      ],
+    );
+    state.updateRoutine(newRoutine);
+    setState(() => _isDirty = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Routine saved — schedule re-optimized.'),
+        backgroundColor: ChronoTheme.surfaceElevated,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: ChronoTheme.border),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = AppStateProvider.of(context);
+    final wakingMins   = (_sleepMinutes - _wakeMinutes).clamp(0, 1440);
+    final sleepMins    = (1440 - _sleepMinutes + _wakeMinutes) % 1440;
+    final fastMins     = (1440 - _dinnerMinutes + _breakfastMinutes) % 1440;
 
     return Scaffold(
       backgroundColor: ChronoTheme.obsidian,
       body: SafeArea(
         child: Column(
           children: [
-            // Symmetrical Header
-            const _SettingsHeader(),
-
-            // Scrollable Settings Content
+            _SettingsHeader(
+              isDirty: _isDirty,
+              onSave: () => _saveRoutine(state),
+              onDiscard: _syncFromState,
+            ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 48),
                 children: [
-                  // Section 1: Real-Time Engine Telemetry
-                  const _SectionHeader(
-                    title: 'ENGINE TELEMETRY',
-                    subtitle: 'Deterministic CSP solver metrics',
-                    icon: Icons.speed_rounded,
+
+                  // ── Section 1: Daily Routine ─────────────────────────────
+                  const _SectionLabel('Daily Routine'),
+                  const SizedBox(height: 10),
+
+                  // 24h visual bar — kept, genuinely useful
+                  _CircadianBar(
+                    wakeMinutes:      _wakeMinutes,
+                    sleepMinutes:     _sleepMinutes,
+                    breakfastMinutes: _breakfastMinutes,
+                    lunchMinutes:     _lunchMinutes,
+                    dinnerMinutes:    _dinnerMinutes,
+                    wakingMinutes:    wakingMins,
+                    sleepMinutes2:    sleepMins,
+                    fastingMinutes:   fastMins,
                   ),
-                  const SizedBox(height: 10),
-                  _TelemetryMetricsCard(state: state),
+                  const SizedBox(height: 12),
 
-                  const SizedBox(height: 24),
-
-                  // Section 2: Clinical Simulation Lab
-                  const _SectionHeader(
-                    title: 'SIMULATION LAB',
-                    subtitle: 'Test dynamic schedule recalibration',
-                    icon: Icons.science_outlined,
+                  // Sleep
+                  _TimeTile(
+                    label: 'Wake up',
+                    minutes: _wakeMinutes,
+                    onChanged: (v) => setState(() { _wakeMinutes = v; _isDirty = true; }),
                   ),
-                  const SizedBox(height: 10),
-                  _OversleptSimulatorCard(state: state),
-                  const SizedBox(height: 10),
-                  _MissedDoseAdvisorSettingsCard(state: state),
-                  const SizedBox(height: 10),
-                  _ResetRegimenCard(onReset: () => _confirmReset(context, state)),
-
-                  const SizedBox(height: 24),
-
-                  // Section 3: Physician Care Handoff
-                  const _SectionHeader(
-                    title: 'PHYSICIAN CARE HANDOFF',
-                    subtitle: 'Clinical summary for doctors & pharmacists',
-                    icon: Icons.assignment_outlined,
+                  const Divider(color: ChronoTheme.border, height: 1),
+                  _TimeTile(
+                    label: 'Bedtime',
+                    minutes: _sleepMinutes,
+                    onChanged: (v) => setState(() { _sleepMinutes = v; _isDirty = true; }),
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // Meals
+                  _TimeTile(
+                    label: 'Breakfast',
+                    minutes: _breakfastMinutes,
+                    onChanged: (v) => setState(() { _breakfastMinutes = v; _isDirty = true; }),
+                  ),
+                  const Divider(color: ChronoTheme.border, height: 1),
+                  _TimeTile(
+                    label: 'Lunch',
+                    minutes: _lunchMinutes,
+                    onChanged: (v) => setState(() { _lunchMinutes = v; _isDirty = true; }),
+                  ),
+                  const Divider(color: ChronoTheme.border, height: 1),
+                  _TimeTile(
+                    label: 'Dinner',
+                    minutes: _dinnerMinutes,
+                    onChanged: (v) => setState(() { _dinnerMinutes = v; _isDirty = true; }),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // ── Section 2: Clinical Care ──────────────────────────────
+                  const _SectionLabel('Clinical Care'),
                   const SizedBox(height: 10),
-                  _PhysicianExportCard(
+
+                  _ActionTile(
+                    icon: Icons.description_outlined,
+                    label: 'Physician summary',
+                    subtitle: 'EHR-ready markdown report for your doctor',
                     onTap: () => PhysicianSummarySheet.show(context, state),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Section 4: Pharmacokinetic Safety Matrix
-                  const _SectionHeader(
-                    title: 'PHARMACOKINETIC SAFETY MATRIX',
-                    subtitle: 'Pairwise chelation & bioavailability audit',
-                    icon: Icons.hub_outlined,
+                  const Divider(color: ChronoTheme.border, height: 1),
+                  _ActionTile(
+                    icon: Icons.history_toggle_off_rounded,
+                    label: 'Missed-dose protocol',
+                    subtitle: 'FDA-grounded guidance for delayed doses',
+                    onTap: () {
+                      if (state.doses.isNotEmpty) {
+                        MissedDoseProtocolSheet.show(context, state.doses.first, state);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No active scheduled doses.')),
+                        );
+                      }
+                    },
                   ),
+
+                  const SizedBox(height: 28),
+
+                  // ── Section 3: Danger Zone ────────────────────────────────
+                  const _SectionLabel('Danger zone'),
                   const SizedBox(height: 10),
-                  _SafetyMatrixSettingsCard(
-                    onTap: () => InteractionMatrixSheet.show(context, state),
+
+                  _DangerTile(
+                    icon: Icons.restore_rounded,
+                    label: 'Restore default regimen',
+                    subtitle: 'Removes all custom medications and resets routine',
+                    onTap: () => _confirmReset(context, state),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Section 5: Zero-Hallucination Clinical Mandate
-                  const _SectionHeader(
-                    title: 'CLINICAL SAFETY MANDATE',
-                    subtitle: 'Deterministic guarantees vs AI hallucination',
-                    icon: Icons.verified_user_outlined,
-                  ),
-                  const SizedBox(height: 10),
-                  const _ClinicalSafetyCard(),
-
-                  const SizedBox(height: 24),
-
-                  // Section 4: Architecture Specifications
-                  const _SectionHeader(
-                    title: 'SYSTEM SPECIFICATIONS',
-                    subtitle: 'Runtime build & algorithm configuration',
-                    icon: Icons.terminal_rounded,
-                  ),
-                  const SizedBox(height: 10),
-                  const _SystemSpecsCard(),
                 ],
               ),
             ),
@@ -125,15 +229,15 @@ class SettingsScreen extends StatelessWidget {
           side: const BorderSide(color: ChronoTheme.border),
         ),
         title: const Text(
-          'Restore Default Regimen?',
+          'Restore default regimen?',
           style: TextStyle(
             color: ChronoTheme.textPrimary,
             fontWeight: FontWeight.w700,
-            fontSize: 17,
+            fontSize: 16,
           ),
         ),
         content: const Text(
-          'This will remove all custom medications, restore the reference 6-drug clinical polypharmacy regimen, and reset routine anchors.',
+          'This removes all custom medications and restores the reference 6-drug clinical polypharmacy regimen, resetting routine anchors.',
           style: TextStyle(
             color: ChronoTheme.textSecondary,
             fontSize: 13,
@@ -143,10 +247,8 @@ class SettingsScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: ChronoTheme.textSecondary),
-            ),
+            child: const Text('Cancel',
+                style: TextStyle(color: ChronoTheme.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -157,14 +259,7 @@ class SettingsScreen extends StatelessWidget {
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Row(
-                    children: [
-                      Icon(Icons.check_circle_outline_rounded,
-                          color: ChronoTheme.secondary, size: 18),
-                      SizedBox(width: 8),
-                      Text('Regimen restored to clinical defaults.'),
-                    ],
-                  ),
+                  content: const Text('Regimen restored.'),
                   backgroundColor: ChronoTheme.surfaceElevated,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
@@ -179,10 +274,9 @@ class SettingsScreen extends StatelessWidget {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+                  borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Reset Regimen'),
+            child: const Text('Restore'),
           ),
         ],
       ),
@@ -190,10 +284,18 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-// ── Symmetrical Header ────────────────────────────────────────────────────────
+// ── Settings Header ───────────────────────────────────────────────────────────
 
 class _SettingsHeader extends StatelessWidget {
-  const _SettingsHeader();
+  final bool isDirty;
+  final VoidCallback onSave;
+  final VoidCallback onDiscard;
+
+  const _SettingsHeader({
+    required this.isDirty,
+    required this.onSave,
+    required this.onDiscard,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -205,59 +307,201 @@ class _SettingsHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Settings & Engine',
-                style: TextStyle(
-                  color: ChronoTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+          const Expanded(
+            child: Text(
+              'Settings',
+              style: TextStyle(
+                color: ChronoTheme.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ),
+          if (isDirty) ...[
+            GestureDetector(
+              onTap: onDiscard,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  'Discard',
+                  style: TextStyle(
+                    color: ChronoTheme.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              SizedBox(height: 2),
-              Text(
-                'Deterministic CSP engine & safety telemetry',
-                style: TextStyle(
-                  color: ChronoTheme.textSecondary,
-                  fontSize: 11,
-                ),
+            ),
+            const SizedBox(width: 4),
+            ElevatedButton(
+              onPressed: onSave,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ChronoTheme.primary,
+                foregroundColor: ChronoTheme.obsidian,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                minimumSize: Size.zero,
+              ),
+              child: const Text('Save', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Section Label ─────────────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  final String title;
+  const _SectionLabel(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title.toUpperCase(),
+      style: const TextStyle(
+        color: ChronoTheme.textMuted,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.8,
+      ),
+    );
+  }
+}
+
+// ── 24h Circadian Bar ─────────────────────────────────────────────────────────
+
+class _CircadianBar extends StatelessWidget {
+  final int wakeMinutes;
+  final int sleepMinutes;
+  final int breakfastMinutes;
+  final int lunchMinutes;
+  final int dinnerMinutes;
+  final int wakingMinutes;
+  final int sleepMinutes2;
+  final int fastingMinutes;
+
+  const _CircadianBar({
+    required this.wakeMinutes,
+    required this.sleepMinutes,
+    required this.breakfastMinutes,
+    required this.lunchMinutes,
+    required this.dinnerMinutes,
+    required this.wakingMinutes,
+    required this.sleepMinutes2,
+    required this.fastingMinutes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final wakeH  = wakingMinutes ~/ 60;
+    final wakeR  = wakingMinutes % 60;
+    final sleepH = sleepMinutes2 ~/ 60;
+    final sleepR = sleepMinutes2 % 60;
+    final fastH  = fastingMinutes ~/ 60;
+    final fastR  = fastingMinutes % 60;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: ChronoTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+        border: Border.all(color: ChronoTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Proportional 24h bar
+          LayoutBuilder(builder: (ctx, constraints) {
+            const totalMins = 1440.0;
+            final w = constraints.maxWidth;
+            final sleepPreWidth = wakeMinutes / totalMins * w;
+            final wakeWidth = (sleepMinutes - wakeMinutes) / totalMins * w;
+            final sleepPostWidth = (totalMins - sleepMinutes) / totalMins * w;
+
+            final bkfstOffset = breakfastMinutes / totalMins * w;
+            final lunchOffset = lunchMinutes / totalMins * w;
+            final dinnerOffset = dinnerMinutes / totalMins * w;
+
+            return SizedBox(
+              height: 28,
+              child: Stack(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: sleepPreWidth,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF64748B).withOpacity(0.15),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(6),
+                            bottomLeft: Radius.circular(6),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: wakeWidth,
+                        color: ChronoTheme.primary.withOpacity(0.12),
+                      ),
+                      Container(
+                        width: sleepPostWidth,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF64748B).withOpacity(0.15),
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(6),
+                            bottomRight: Radius.circular(6),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Meal pins
+                  for (final offset in [bkfstOffset, lunchOffset, dinnerOffset])
+                    Positioned(
+                      left: offset - 1,
+                      top: 4,
+                      bottom: 4,
+                      child: Container(
+                        width: 2,
+                        decoration: BoxDecoration(
+                          color: ChronoTheme.secondary,
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+
+          const SizedBox(height: 12),
+
+          // Telemetry row
+          Row(
+            children: [
+              _BarStat(
+                label: 'Awake',
+                value: '${wakeH}h ${wakeR}m',
+                color: ChronoTheme.primary,
+              ),
+              const SizedBox(width: 16),
+              _BarStat(
+                label: 'Sleep',
+                value: '${sleepH}h ${sleepR}m',
+                color: ChronoTheme.textSecondary,
+              ),
+              const SizedBox(width: 16),
+              _BarStat(
+                label: 'Fast',
+                value: '${fastH}h ${fastR}m',
+                color: ChronoTheme.secondary,
               ),
             ],
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: ChronoTheme.surfaceElevated,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: ChronoTheme.border),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: ChronoTheme.secondary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  'AOT ENGINE ONLINE',
-                  style: TextStyle(
-                    color: ChronoTheme.textPrimary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -265,438 +509,164 @@ class _SettingsHeader extends StatelessWidget {
   }
 }
 
-// ── Section Header ────────────────────────────────────────────────────────────
+class _BarStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  const _SectionHeader({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
+  const _BarStat({required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 15, color: ChronoTheme.textSecondary),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                color: ChronoTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-              ),
-            ),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: ChronoTheme.textMuted,
-                fontSize: 10,
-              ),
-            ),
-          ],
+        Text(
+          label,
+          style: const TextStyle(
+            color: ChronoTheme.textMuted,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            fontFamily: ChronoTheme.monoFont,
+          ),
         ),
       ],
     );
   }
 }
 
-// ── Telemetry Metrics Card ───────────────────────────────────────────────────
+// ── Time Tile (Routine anchor editor) ─────────────────────────────────────────
 
-class _TelemetryMetricsCard extends StatelessWidget {
-  final AppState state;
-  const _TelemetryMetricsCard({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final solveMs = state.lastSolveDurationMs;
-    final medCount = state.medications.length;
-    final adherencePct = (state.adherenceRatio * 100).round();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ChronoTheme.border),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _TelemetryMetricTile(
-                  label: 'SOLVE LATENCY',
-                  value: '${solveMs}ms',
-                  valueColor: ChronoTheme.primary,
-                  icon: Icons.bolt_rounded,
-                  caption: '< 15ms target',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _TelemetryMetricTile(
-                  label: 'ACTIVE DRUGS',
-                  value: '$medCount',
-                  valueColor: ChronoTheme.textPrimary,
-                  icon: Icons.medication_outlined,
-                  caption: 'In memory',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _TelemetryMetricTile(
-                  label: 'ADHERENCE',
-                  value: '$adherencePct%',
-                  valueColor: adherencePct >= 80
-                      ? ChronoTheme.secondary
-                      : ChronoTheme.primary,
-                  icon: Icons.check_circle_outline_rounded,
-                  caption: 'Today ratio',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: ChronoTheme.surfaceElevated,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.memory_rounded,
-                  size: 13,
-                  color: ChronoTheme.secondary,
-                ),
-                SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Deterministic backtracking solver executes with 0ms network latency.',
-                    style: TextStyle(
-                      color: ChronoTheme.textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TelemetryMetricTile extends StatelessWidget {
+class _TimeTile extends StatelessWidget {
   final String label;
-  final String value;
-  final Color valueColor;
-  final IconData icon;
-  final String caption;
+  final int minutes;
+  final ValueChanged<int> onChanged;
 
-  const _TelemetryMetricTile({
+  const _TimeTile({
     required this.label,
-    required this.value,
-    required this.valueColor,
-    required this.icon,
-    required this.caption,
+    required this.minutes,
+    required this.onChanged,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ChronoTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 13, color: valueColor),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: ChronoTheme.textMuted,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              fontFamily: ChronoTheme.monoFont,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            caption,
-            style: const TextStyle(
-              color: ChronoTheme.textDim,
-              fontSize: 10,
-            ),
-          ),
-        ],
-      ),
-    );
+  String _formatTime(int mins) {
+    final h = mins ~/ 60;
+    final m = mins % 60;
+    final period = h < 12 ? 'AM' : 'PM';
+    final displayH = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    return '${displayH.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')} $period';
   }
-}
 
-// ── Overslept Simulator Card ──────────────────────────────────────────────────
-
-class _OversleptSimulatorCard extends StatelessWidget {
-  final AppState state;
-  const _OversleptSimulatorCard({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final isOverslept = state.isOversleptMode;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isOverslept
-              ? ChronoTheme.primary.withOpacity(0.5)
-              : ChronoTheme.border,
+  Future<void> _pickTime(BuildContext context) async {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: h, minute: m),
+      builder: (ctx, child) => Theme(
+        data: ChronoTheme.darkTheme.copyWith(
+          timePickerTheme: const TimePickerThemeData(
+            backgroundColor: ChronoTheme.surfaceCard,
+          ),
         ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: isOverslept
-                  ? ChronoTheme.cyanSurface
-                  : ChronoTheme.surfaceElevated,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: isOverslept
-                    ? ChronoTheme.primary
-                    : ChronoTheme.border,
-              ),
-            ),
-            child: Icon(
-              Icons.alarm_add_rounded,
-              color: isOverslept ? ChronoTheme.primary : ChronoTheme.textSecondary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text(
-                      'Simulate Overslept Routine',
-                      style: TextStyle(
-                        color: ChronoTheme.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isOverslept
-                            ? ChronoTheme.cyanSurface
-                            : ChronoTheme.surfaceElevated,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isOverslept
-                              ? ChronoTheme.primary
-                              : ChronoTheme.borderSubtle,
-                        ),
-                      ),
-                      child: Text(
-                        isOverslept ? '+2h 15m ACTIVE' : 'INACTIVE',
-                        style: TextStyle(
-                          color: isOverslept
-                              ? ChronoTheme.primary
-                              : ChronoTheme.textMuted,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Delays waking by 2h 15m. DynamicRecalibrator cascades meal and dose times forward to preserve separation constraints.',
-                  style: TextStyle(
-                    color: ChronoTheme.textSecondary,
-                    fontSize: 12,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: () {
-                    state.simulateOverslept();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            Icon(
-                              isOverslept
-                                  ? Icons.restore_rounded
-                                  : Icons.alarm_on_rounded,
-                              color: ChronoTheme.primary,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              isOverslept
-                                  ? 'Restored standard routine schedule.'
-                                  : 'Overslept (+2h 15m) applied. Schedule shifted.',
-                            ),
-                          ],
-                        ),
-                        backgroundColor: ChronoTheme.surfaceElevated,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(color: ChronoTheme.border),
-                        ),
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: isOverslept
-                          ? ChronoTheme.surfaceElevated
-                          : ChronoTheme.cyanSurface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isOverslept
-                            ? ChronoTheme.border
-                            : ChronoTheme.primary.withOpacity(0.4),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isOverslept
-                              ? Icons.restore_rounded
-                              : Icons.play_arrow_rounded,
-                          size: 15,
-                          color: ChronoTheme.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isOverslept
-                              ? 'Restore Standard Schedule'
-                              : 'Trigger Late Wake-up (+2h 15m)',
-                          style: const TextStyle(
-                            color: ChronoTheme.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        child: child!,
       ),
     );
+    if (picked != null) {
+      onChanged(picked.hour * 60 + picked.minute);
+    }
   }
-}
-
-// ── Reset Regimen Card ────────────────────────────────────────────────────────
-
-class _ResetRegimenCard extends StatelessWidget {
-  final VoidCallback onReset;
-  const _ResetRegimenCard({required this.onReset});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onReset,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: ChronoTheme.surfaceCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: ChronoTheme.border),
-        ),
+      onTap: () => _pickTime(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: ChronoTheme.roseSurface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: ChronoTheme.rose.withOpacity(0.3)),
-              ),
-              child: const Icon(
-                Icons.restore_page_outlined,
-                color: ChronoTheme.rose,
-                size: 20,
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: ChronoTheme.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
+            Text(
+              _formatTime(minutes),
+              style: const TextStyle(
+                color: ChronoTheme.primary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                fontFamily: ChronoTheme.monoFont,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: ChronoTheme.textMuted,
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Action Tile (Clinical Care section) ───────────────────────────────────────
+
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: ChronoTheme.primary),
             const SizedBox(width: 14),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Reset to Reference Regimen',
-                    style: TextStyle(
+                    label,
+                    style: const TextStyle(
                       color: ChronoTheme.textPrimary,
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'Restores default 6-medication schedule & resets anchors',
-                    style: TextStyle(
+                    subtitle,
+                    style: const TextStyle(
                       color: ChronoTheme.textMuted,
-                      fontSize: 12,
+                      fontSize: 11.5,
                     ),
                   ),
                 ],
@@ -704,8 +674,8 @@ class _ResetRegimenCard extends StatelessWidget {
             ),
             const Icon(
               Icons.chevron_right_rounded,
-              color: ChronoTheme.textSecondary,
-              size: 20,
+              color: ChronoTheme.textMuted,
+              size: 18,
             ),
           ],
         ),
@@ -714,568 +684,68 @@ class _ResetRegimenCard extends StatelessWidget {
   }
 }
 
-// ── Clinical Safety Mandate Card ──────────────────────────────────────────────
+// ── Danger Tile ───────────────────────────────────────────────────────────────
 
-class _ClinicalSafetyCard extends StatelessWidget {
-  const _ClinicalSafetyCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ChronoTheme.border),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.health_and_safety_outlined,
-                color: ChronoTheme.primary,
-                size: 18,
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Zero-Hallucination Mandate',
-                style: TextStyle(
-                  color: ChronoTheme.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.2,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 10),
-          Text(
-            'Large Language Models (LLMs) are strictly forbidden from calculating medication '
-            'timings, meal buffers, or drug-drug interactions. ChronoMed runs 100% deterministic, '
-            'symbolic constraint-satisfaction algorithms verified by FDA-cited clinical rules.',
-            style: TextStyle(
-              color: ChronoTheme.textSecondary,
-              fontSize: 12,
-              height: 1.5,
-            ),
-          ),
-          SizedBox(height: 14),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _SafetyPill(label: 'Deterministic CSP', color: ChronoTheme.primary),
-              _SafetyPill(label: 'FDA Clinical Grounding', color: ChronoTheme.secondary),
-              _SafetyPill(label: 'Zero LLM Math', color: ChronoTheme.rose),
-              _SafetyPill(label: '100% Offline-First', color: ChronoTheme.textSecondary),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SafetyPill extends StatelessWidget {
+class _DangerTile extends StatelessWidget {
+  final IconData icon;
   final String label;
-  final Color color;
-  const _SafetyPill({required this.label, required this.color});
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _DangerTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 5,
-            height: 5,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: color == ChronoTheme.textSecondary
-                  ? ChronoTheme.textPrimary
-                  : color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── System Specifications Card ────────────────────────────────────────────────
-
-class _SystemSpecsCard extends StatelessWidget {
-  const _SystemSpecsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ChronoTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: ChronoTheme.surfaceElevated,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: ChronoTheme.border),
-                ),
-                child: const Icon(
-                  Icons.medical_services_outlined,
-                  color: ChronoTheme.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Column(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: ChronoTheme.surfaceCard,
+          borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+          border: Border.all(color: ChronoTheme.rose.withOpacity(0.35)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: ChronoTheme.rose),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'ChronoMed Health System',
-                    style: TextStyle(
-                      color: ChronoTheme.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.2,
+                    label,
+                    style: const TextStyle(
+                      color: ChronoTheme.rose,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
-                    'v1.0.0 · Multi-Platform (Web, Android, Desktop)',
-                    style: TextStyle(
-                      color: ChronoTheme.textSecondary,
-                      fontSize: 11,
+                    subtitle,
+                    style: const TextStyle(
+                      color: ChronoTheme.textMuted,
+                      fontSize: 11.5,
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          const Divider(color: ChronoTheme.border, height: 1),
-          const SizedBox(height: 10),
-          const _SpecRow(label: 'Engine Runtime', value: 'Pure Dart 3.5 AOT'),
-          const _SpecRow(label: 'Algorithm', value: 'Backtracking CSP + MRV'),
-          const _SpecRow(label: 'Solve Latency', value: '< 15ms target (~7ms)'),
-          const _SpecRow(label: 'FDA Drug Profiles', value: '50 Indexed Molecules'),
-          const _SpecRow(label: 'Cation Chelation Gap', value: '≥ 240 min (Ca²⁺/Fe²⁺)'),
-          const _SpecRow(label: 'Fasting Pre-Meal Buffer', value: '≥ 60 min'),
-          const _SpecRow(label: 'Fasting Post-Meal Buffer', value: '≥ 120 min'),
-        ],
-      ),
-    );
-  }
-}
-
-class _SpecRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _SpecRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: ChronoTheme.textSecondary,
-                fontSize: 12,
-              ),
             ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: ChronoTheme.textPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              fontFamily: ChronoTheme.monoFont,
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: ChronoTheme.textMuted,
+              size: 18,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Physician Export Card ─────────────────────────────────────────────────────
-
-class _PhysicianExportCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _PhysicianExportCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ChronoTheme.border),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.cyanSurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
-                  ),
-                  child: const Icon(
-                    Icons.description_outlined,
-                    color: ChronoTheme.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Physician Regimen Summary',
-                              style: TextStyle(
-                                color: ChronoTheme.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: ChronoTheme.primary.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              'EHR Ready',
-                              style: TextStyle(
-                                color: ChronoTheme.primary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Generate an EHR-ready, structured Markdown report with circadian anchors, prandial rules, chelation buffers, and zero-hallucination verification.',
-                        style: TextStyle(
-                          color: ChronoTheme.textSecondary,
-                          fontSize: 12,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Row(
-                        children: [
-                          Text(
-                            'View & Export Report',
-                            style: TextStyle(
-                              color: ChronoTheme.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 14,
-                            color: ChronoTheme.primary,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
         ),
       ),
     );
   }
 }
-
-// ── Safety Matrix Settings Card ───────────────────────────────────────────────
-
-class _SafetyMatrixSettingsCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _SafetyMatrixSettingsCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ChronoTheme.border),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.secondary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ChronoTheme.secondary.withOpacity(0.3)),
-                  ),
-                  child: const Icon(
-                    Icons.hub_outlined,
-                    color: ChronoTheme.secondary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Pharmacokinetic Safety Matrix',
-                              style: TextStyle(
-                                color: ChronoTheme.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: ChronoTheme.secondary.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              '100% Guarded',
-                              style: TextStyle(
-                                color: ChronoTheme.secondary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Audit pairwise chelation separation gaps, absorption competition, and chronobiological peak alignments for your active polypharmacy regimen.',
-                        style: TextStyle(
-                          color: ChronoTheme.textSecondary,
-                          fontSize: 12,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Row(
-                        children: [
-                          Text(
-                            'Open Interactive Safety Matrix',
-                            style: TextStyle(
-                              color: ChronoTheme.secondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 14,
-                            color: ChronoTheme.secondary,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Missed-Dose Advisor Settings Card ─────────────────────────────────────────
-
-class _MissedDoseAdvisorSettingsCard extends StatelessWidget {
-  final AppState state;
-  const _MissedDoseAdvisorSettingsCard({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ChronoTheme.border),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            if (state.doses.isNotEmpty) {
-              MissedDoseProtocolSheet.show(context, state.doses.first, state);
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No active scheduled doses in regimen.')),
-              );
-            }
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.cyanSurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
-                  ),
-                  child: const Icon(
-                    Icons.history_toggle_off_rounded,
-                    color: ChronoTheme.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Missed-Dose Protocols',
-                              style: TextStyle(
-                                color: ChronoTheme.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: ChronoTheme.primary.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              'FDA Guidance',
-                              style: TextStyle(
-                                color: ChronoTheme.primary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Inspect pharmacokinetic grace windows, double-dose contraindication warnings, and cascading shift logic for your medications.',
-                        style: TextStyle(
-                          color: ChronoTheme.textSecondary,
-                          fontSize: 12,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Row(
-                        children: [
-                          Text(
-                            'Open Protocol Advisor',
-                            style: TextStyle(
-                              color: ChronoTheme.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 14,
-                            color: ChronoTheme.primary,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-

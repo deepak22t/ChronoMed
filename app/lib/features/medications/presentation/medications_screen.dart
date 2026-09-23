@@ -3,19 +3,15 @@ import 'package:core_engine/core_engine.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
-import '../../settings/presentation/physician_summary_sheet.dart';
 import 'add_medication_dialog.dart';
 import 'interaction_matrix_sheet.dart';
 
-enum _MedFilter { all, emptyStomach, withFood, cationConflict }
+enum _MedFilter { all, emptyStomach, withFood, separationRequired }
 
-/// Phase 4: Symmetrical & Minimalist Medication Cabinet
+/// Medications screen — manage the active medication regimen.
 ///
-/// Implements Calm Health design principles:
-/// - Soothing 2-color palette (Soft Glacial Blue & Muted Sage).
-/// - 8-point spatial symmetry (16px margins, 12px gaps, 16px card radius).
-/// - Zero cartoon emojis; pure vector outline glyphs.
-/// - Clinical detail inspection modal for pharmacokinetic properties.
+/// Simplified: single FAB for add, medication cards without decorative icon
+/// squares, filters in plain language, detail sheet focused on clinical facts.
 class MedicationsScreen extends StatefulWidget {
   const MedicationsScreen({super.key});
 
@@ -39,19 +35,17 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
     final state = AppStateProvider.of(context);
     final allMeds = state.medications;
 
-    // Apply search & category filter
     final filteredMeds = allMeds.where((m) {
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
-        final matchesName = m.name.toLowerCase().contains(q);
-        final matchesDose = m.dosage.toLowerCase().contains(q);
-        if (!matchesName && !matchesDose) return false;
+        if (!m.name.toLowerCase().contains(q) &&
+            !m.dosage.toLowerCase().contains(q)) return false;
       }
       return switch (_selectedFilter) {
-        _MedFilter.all => true,
-        _MedFilter.emptyStomach => m.rules.requiresEmptyStomach,
-        _MedFilter.withFood => m.rules.requiresFood,
-        _MedFilter.cationConflict => m.rules.separationConstraints.isNotEmpty,
+        _MedFilter.all               => true,
+        _MedFilter.emptyStomach      => m.rules.requiresEmptyStomach,
+        _MedFilter.withFood          => m.rules.requiresFood,
+        _MedFilter.separationRequired => m.rules.separationConstraints.isNotEmpty,
       };
     }).toList();
 
@@ -60,15 +54,11 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Symmetrical Header
-            _CabinetHeader(
+            _MedsHeader(
               totalCount: allMeds.length,
-              onAddPressed: () => _showAddDialog(context, state),
-              onExportPressed: () => PhysicianSummarySheet.show(context, state),
-              onMatrixPressed: () => InteractionMatrixSheet.show(context, state),
             ),
 
-            // Search & Filter Section
+            // Search + filters
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Column(
@@ -82,19 +72,18 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
                     },
                   ),
                   const SizedBox(height: 10),
-                  _FilterChipsRow(
-                    selectedFilter: _selectedFilter,
-                    onFilterSelected: (filter) =>
-                        setState(() => _selectedFilter = filter),
+                  _FilterRow(
+                    selected: _selectedFilter,
+                    onSelected: (f) => setState(() => _selectedFilter = f),
                   ),
                 ],
               ),
             ),
 
-            // Medication List
+            // List
             Expanded(
               child: filteredMeds.isEmpty
-                  ? _EmptyCabinetState(
+                  ? _EmptyState(
                       hasQuery: _searchQuery.isNotEmpty ||
                           _selectedFilter != _MedFilter.all,
                       onResetFilters: () {
@@ -111,16 +100,8 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, i) => _MedicationCard(
                         med: filteredMeds[i],
-                        onTap: () => _showDetailSheet(
-                          context,
-                          filteredMeds[i],
-                          state,
-                        ),
-                        onDelete: () => _confirmDelete(
-                          context,
-                          filteredMeds[i],
-                          state,
-                        ),
+                        onTap: () => _showDetailSheet(context, filteredMeds[i], state),
+                        onDelete: () => _confirmDelete(context, filteredMeds[i], state),
                       ),
                     ),
             ),
@@ -134,7 +115,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
         elevation: 2,
         icon: const Icon(Icons.add_rounded),
         label: const Text(
-          'Add Prescription',
+          'Add medication',
           style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.2),
         ),
       ),
@@ -179,15 +160,15 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
           side: const BorderSide(color: ChronoTheme.border),
         ),
         title: const Text(
-          'Remove Prescription?',
+          'Remove medication?',
           style: TextStyle(
             color: ChronoTheme.textPrimary,
             fontWeight: FontWeight.w700,
-            fontSize: 17,
+            fontSize: 16,
           ),
         ),
         content: Text(
-          'Remove ${med.name} (${med.dosage}) from your active regimen? Your daily circadian schedule will re-optimize automatically.',
+          'Remove ${med.name} (${med.dosage}) from your regimen. Your schedule will re-optimize automatically.',
           style: const TextStyle(
             color: ChronoTheme.textSecondary,
             fontSize: 13,
@@ -197,10 +178,8 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: ChronoTheme.textSecondary),
-            ),
+            child: const Text('Cancel',
+                style: TextStyle(color: ChronoTheme.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -212,8 +191,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Remove'),
           ),
@@ -223,20 +201,12 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
   }
 }
 
-// ── Symmetrical Cabinet Header ────────────────────────────────────────────────
+// ── Header ────────────────────────────────────────────────────────────────────
 
-class _CabinetHeader extends StatelessWidget {
+class _MedsHeader extends StatelessWidget {
   final int totalCount;
-  final VoidCallback onAddPressed;
-  final VoidCallback onExportPressed;
-  final VoidCallback onMatrixPressed;
 
-  const _CabinetHeader({
-    required this.totalCount,
-    required this.onAddPressed,
-    required this.onExportPressed,
-    required this.onMatrixPressed,
-  });
+  const _MedsHeader({required this.totalCount});
 
   @override
   Widget build(BuildContext context) {
@@ -248,115 +218,25 @@ class _CabinetHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Prescription Cabinet',
-                style: TextStyle(
-                  color: ChronoTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Pharmacokinetic timing & clinical rules',
-                style: TextStyle(
-                  color: ChronoTheme.textSecondary,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          // Pharmacokinetic Safety Matrix Button
-          InkWell(
-            onTap: onMatrixPressed,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-              decoration: BoxDecoration(
-                color: ChronoTheme.secondary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: ChronoTheme.secondary.withOpacity(0.3)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.hub_outlined, size: 12, color: ChronoTheme.secondary),
-                  SizedBox(width: 4),
-                  Text(
-                    'Safety',
-                    style: TextStyle(
-                      color: ChronoTheme.secondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          // EHR Summary Button
-          InkWell(
-            onTap: onExportPressed,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-              decoration: BoxDecoration(
-                color: ChronoTheme.primary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.description_outlined, size: 12, color: ChronoTheme.primary),
-                  SizedBox(width: 4),
-                  Text(
-                    'EHR',
-                    style: TextStyle(
-                      color: ChronoTheme.primary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: ChronoTheme.surfaceElevated,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: ChronoTheme.border),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: ChronoTheme.primary,
-                    shape: BoxShape.circle,
+                const Text(
+                  'Medications',
+                  style: TextStyle(
+                    color: ChronoTheme.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(height: 2),
                 Text(
-                  '$totalCount ACTIVE',
+                  '$totalCount active',
                   style: const TextStyle(
-                    color: ChronoTheme.textPrimary,
+                    color: ChronoTheme.textSecondary,
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
                   ),
                 ),
               ],
@@ -368,7 +248,7 @@ class _CabinetHeader extends StatelessWidget {
   }
 }
 
-// ── Search Bar ───────────────────────────────────────────────────────────────
+// ── Search Bar ────────────────────────────────────────────────────────────────
 
 class _SearchBar extends StatelessWidget {
   final TextEditingController controller;
@@ -388,7 +268,7 @@ class _SearchBar extends StatelessWidget {
       onChanged: onChanged,
       style: const TextStyle(color: ChronoTheme.textPrimary, fontSize: 13),
       decoration: InputDecoration(
-        hintText: 'Search active medications...',
+        hintText: 'Search medications...',
         hintStyle: const TextStyle(color: ChronoTheme.textMuted, fontSize: 13),
         prefixIcon: const Icon(
           Icons.search_rounded,
@@ -407,7 +287,8 @@ class _SearchBar extends StatelessWidget {
             : null,
         filled: true,
         fillColor: ChronoTheme.surfaceElevated,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: ChronoTheme.border),
@@ -425,47 +306,44 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-// ── Filter Chips Row ──────────────────────────────────────────────────────────
+// ── Filter Row ────────────────────────────────────────────────────────────────
 
-class _FilterChipsRow extends StatelessWidget {
-  final _MedFilter selectedFilter;
-  final ValueChanged<_MedFilter> onFilterSelected;
+class _FilterRow extends StatelessWidget {
+  final _MedFilter selected;
+  final ValueChanged<_MedFilter> onSelected;
 
-  const _FilterChipsRow({
-    required this.selectedFilter,
-    required this.onFilterSelected,
-  });
+  const _FilterRow({required this.selected, required this.onSelected});
 
   @override
   Widget build(BuildContext context) {
-    final filters = [
-      (_MedFilter.all, 'All'),
-      (_MedFilter.emptyStomach, 'Empty Stomach'),
-      (_MedFilter.withFood, 'With Food'),
-      (_MedFilter.cationConflict, 'Cation Conflict'),
+    const filters = [
+      (_MedFilter.all,               'All'),
+      (_MedFilter.emptyStomach,      'Empty stomach'),
+      (_MedFilter.withFood,          'With food'),
+      (_MedFilter.separationRequired, 'Separation required'),
     ];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: filters.map((item) {
-          final isSelected = selectedFilter == item.$1;
+          final isSelected = selected == item.$1;
           return Padding(
             padding: const EdgeInsets.only(right: 6),
-            child: InkWell(
-              onTap: () => onFilterSelected(item.$1),
-              borderRadius: BorderRadius.circular(18),
+            child: GestureDetector(
+              onTap: () => onSelected(item.$1),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? ChronoTheme.cyanSurface
                       : ChronoTheme.surfaceElevated,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected
-                        ? ChronoTheme.primary
+                        ? ChronoTheme.primary.withOpacity(0.4)
                         : ChronoTheme.border,
                   ),
                 ),
@@ -473,10 +351,11 @@ class _FilterChipsRow extends StatelessWidget {
                   item.$2,
                   style: TextStyle(
                     color: isSelected
-                        ? ChronoTheme.textPrimary
-                        : ChronoTheme.textSecondary,
+                        ? ChronoTheme.primary
+                        : ChronoTheme.textMuted,
                     fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight:
+                        isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ),
@@ -488,7 +367,7 @@ class _FilterChipsRow extends StatelessWidget {
   }
 }
 
-// ── Symmetrical Medication Card ──────────────────────────────────────────────
+// ── Medication Card ────────────────────────────────────────────────────────────
 
 class _MedicationCard extends StatelessWidget {
   final Medication med;
@@ -504,181 +383,104 @@ class _MedicationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rules = med.rules;
+    final timingColor = _timingColor(rules.circadianPreference);
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(ChronoTheme.radiusLarge),
       child: Container(
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: ChronoTheme.surfaceCard,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(ChronoTheme.radiusLarge),
           border: Border.all(color: ChronoTheme.border),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Top Row: Glyph + Title/Dose + Detail Chevron
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.surfaceElevated,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: ChronoTheme.border),
-                  ),
-                  child: const Icon(
-                    Icons.medication_outlined,
-                    color: ChronoTheme.primary,
-                    size: 20,
-                  ),
+            // Left accent bar — communicates circadian window with color
+            Container(
+              width: 3,
+              decoration: BoxDecoration(
+                color: timingColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(ChronoTheme.radiusLarge),
+                  bottomLeft: Radius.circular(ChronoTheme.radiusLarge),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        med.name,
-                        style: const TextStyle(
-                          color: ChronoTheme.textPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          letterSpacing: -0.2,
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            med.name,
+                            style: const TextStyle(
+                              color: ChronoTheme.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 3),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: ChronoTheme.surfaceElevated,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: ChronoTheme.borderSubtle),
-                        ),
-                        child: Text(
+                        Text(
                           med.dosage,
                           style: const TextStyle(
                             color: ChronoTheme.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Compact constraint summary — single line, no extra containers
+                    Text(
+                      _constraintSummary(rules),
+                      style: const TextStyle(
+                        color: ChronoTheme.textMuted,
+                        fontSize: 11.5,
+                        height: 1.3,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.info_outline_rounded,
-                    color: ChronoTheme.textSecondary,
-                    size: 20,
-                  ),
-                  tooltip: 'Clinical details',
-                  onPressed: onTap,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Symmetrical Clinical Rule Pills (Calm 2-color palette)
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                // Timing Window Pill
-                _RulePill(
-                  icon: switch (rules.circadianPreference) {
-                    CircadianWindow.morning => Icons.wb_sunny_outlined,
-                    CircadianWindow.afternoon => Icons.wb_twilight_outlined,
-                    CircadianWindow.evening => Icons.nightlight_outlined,
-                    CircadianWindow.bedtime => Icons.bedtime_outlined,
-                    CircadianWindow.anyTime => Icons.schedule_outlined,
-                  },
-                  label: rules.circadianPreference.displayName,
-                  color: ChronoTheme.primary,
-                ),
-
-                // Meal Rule Pill
-                if (rules.requiresEmptyStomach)
-                  const _RulePill(
-                    icon: Icons.no_meals_outlined,
-                    label: 'Empty Stomach',
-                    color: ChronoTheme.textSecondary,
-                  ),
-                if (rules.requiresFood)
-                  const _RulePill(
-                    icon: Icons.restaurant_outlined,
-                    label: 'With Food',
-                    color: ChronoTheme.secondary,
-                  ),
-
-                // Separation Rule Pill
-                if (rules.separationConstraints.isNotEmpty)
-                  _RulePill(
-                    icon: Icons.sync_problem_rounded,
-                    label:
-                        '≥ ${rules.separationConstraints.first.minimumSeparationMinutes ~/ 60}h Cation Gap',
-                    color: ChronoTheme.rose,
-                  ),
-              ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
-}
 
-// ── Rule Pill ─────────────────────────────────────────────────────────────────
+  Color _timingColor(CircadianWindow window) {
+    return switch (window) {
+      CircadianWindow.morning   => ChronoTheme.primary,
+      CircadianWindow.bedtime   => ChronoTheme.secondary,
+      CircadianWindow.afternoon => ChronoTheme.primary,
+      CircadianWindow.evening   => ChronoTheme.secondary,
+      CircadianWindow.anyTime   => ChronoTheme.border,
+    };
+  }
 
-class _RulePill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _RulePill({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: color == ChronoTheme.textSecondary
-                  ? ChronoTheme.textPrimary
-                  : color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
+  String _constraintSummary(PharmacokineticRule rules) {
+    final parts = <String>[];
+    parts.add(rules.circadianPreference.displayName);
+    if (rules.requiresEmptyStomach) parts.add('empty stomach');
+    if (rules.requiresFood) parts.add('with food');
+    if (rules.separationConstraints.isNotEmpty) {
+      final mins = rules.separationConstraints.first.minimumSeparationMinutes;
+      parts.add('${mins ~/ 60}h separation');
+    }
+    return parts.join('  ·  ');
   }
 }
 
-// ── Medication Detail Bottom Sheet ────────────────────────────────────────────
+// ── Medication Detail Sheet ───────────────────────────────────────────────────
 
 class _MedicationDetailSheet extends StatelessWidget {
   final Medication med;
@@ -718,46 +520,18 @@ class _MedicationDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Header
+          // Drug name + dosage
           Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: ChronoTheme.surfaceElevated,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: ChronoTheme.border),
-                ),
-                child: const Icon(
-                  Icons.medication_outlined,
-                  color: ChronoTheme.primary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 14),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      med.name,
-                      style: const TextStyle(
-                        color: ChronoTheme.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Strength: ${med.dosage}',
-                      style: const TextStyle(
-                        color: ChronoTheme.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  med.name,
+                  style: const TextStyle(
+                    color: ChronoTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
               IconButton(
@@ -769,75 +543,45 @@ class _MedicationDetailSheet extends StatelessWidget {
               ),
             ],
           ),
+          Text(
+            med.dosage,
+            style: const TextStyle(
+              color: ChronoTheme.textSecondary,
+              fontSize: 13,
+            ),
+          ),
 
           const SizedBox(height: 18),
           const Divider(color: ChronoTheme.border, height: 1),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Pharmacokinetic Attributes List
-          const Text(
-            'PHARMACOKINETIC PROFILE',
-            style: TextStyle(
-              color: ChronoTheme.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Circadian Timing
-          _DetailRow(
-            icon: Icons.access_time_rounded,
-            title: 'Optimal Administration Window',
+          // Clinical attributes — plain rows, no icon containers
+          _PlainDetailRow(
+            label: 'Timing',
             value: rules.circadianPreference.displayName,
-            subtitle: _getCircadianExplanation(rules.circadianPreference),
-            color: ChronoTheme.primary,
           ),
           const SizedBox(height: 10),
-
-          // Prandial Constraint
-          _DetailRow(
-            icon: rules.requiresEmptyStomach
-                ? Icons.no_meals_outlined
-                : rules.requiresFood
-                    ? Icons.restaurant_outlined
-                    : Icons.check_circle_outline_rounded,
-            title: 'Meal Timing Requirement',
+          _PlainDetailRow(
+            label: 'Meal',
             value: rules.requiresEmptyStomach
-                ? 'Empty Stomach Required'
+                ? 'Empty stomach required'
                 : rules.requiresFood
-                    ? 'Take With Food'
-                    : 'Flexible (No Meal Constraint)',
-            subtitle: rules.requiresEmptyStomach
-                ? 'Fasting required: ≥ 60m pre-meal or ≥ 120m post-meal to avoid absorption inhibition.'
-                : rules.requiresFood
-                    ? 'Co-administration with dietary lipids or carbohydrates enhances bioavailability.'
-                    : 'Bioavailability is stable regardless of gastric fullness.',
-            color: rules.requiresEmptyStomach
-                ? ChronoTheme.textSecondary
-                : rules.requiresFood
-                    ? ChronoTheme.secondary
-                    : ChronoTheme.primary,
+                    ? 'Take with food'
+                    : 'No meal constraint',
           ),
 
-          // Separation Constraints / Chelation
           if (rules.separationConstraints.isNotEmpty) ...[
             const SizedBox(height: 10),
             ...rules.separationConstraints.map(
-              (c) => _DetailRow(
-                icon: Icons.sync_problem_rounded,
-                title: 'Chelation Separation: ${c.targetIdentifier}',
-                value: '≥ ${c.minimumSeparationMinutes} min mandatory gap',
-                subtitle: c.clinicalRationale,
-                color: ChronoTheme.rose,
+              (c) => _PlainDetailRow(
+                label: 'Separation',
+                value: '${c.minimumSeparationMinutes} min gap from ${c.targetIdentifier}',
               ),
             ),
           ],
 
           const SizedBox(height: 20),
 
-          // Inspect in Safety Matrix
           SizedBox(
             width: double.infinity,
             height: 46,
@@ -845,7 +589,7 @@ class _MedicationDetailSheet extends StatelessWidget {
               onPressed: onOpenMatrix,
               icon: const Icon(Icons.hub_outlined, size: 16),
               label: const Text(
-                'Inspect in Pharmacokinetic Safety Matrix',
+                'View in Safety Matrix',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               ),
               style: OutlinedButton.styleFrom(
@@ -853,29 +597,28 @@ class _MedicationDetailSheet extends StatelessWidget {
                 side: BorderSide(color: ChronoTheme.primary.withOpacity(0.35)),
                 backgroundColor: ChronoTheme.primary.withOpacity(0.06),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 10),
 
-          // Remove Button
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 46,
             child: OutlinedButton.icon(
               onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              icon: const Icon(Icons.delete_outline_rounded, size: 16),
               label: const Text(
-                'Remove Prescription from Cabinet',
-                style: TextStyle(fontWeight: FontWeight.w600),
+                'Remove medication',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: ChronoTheme.rose,
                 side: BorderSide(color: ChronoTheme.rose.withOpacity(0.4)),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
                 ),
               ),
             ),
@@ -884,109 +627,52 @@ class _MedicationDetailSheet extends StatelessWidget {
       ),
     );
   }
-
-  String _getCircadianExplanation(CircadianWindow window) {
-    return switch (window) {
-      CircadianWindow.morning =>
-        'Cortisol & diurnal metabolic peak optimize therapeutic uptake.',
-      CircadianWindow.bedtime =>
-        'Aligns with nocturnal hepatic enzyme synthesis (e.g. HMG-CoA reductase).',
-      CircadianWindow.afternoon =>
-        'Avoids morning cation competition while maintaining therapeutic serum levels.',
-      CircadianWindow.evening =>
-        'Synchronized with nocturnal blood pressure dipping and circadian rest.',
-      CircadianWindow.anyTime =>
-        'Consistent 24-hour therapeutic window with no circadian peak sensitivity.',
-    };
-  }
 }
 
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
+class _PlainDetailRow extends StatelessWidget {
+  final String label;
   final String value;
-  final String subtitle;
-  final Color color;
 
-  const _DetailRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.color,
-  });
+  const _PlainDetailRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ChronoTheme.border),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: ChronoTheme.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: ChronoTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: ChronoTheme.textMuted,
-                    fontSize: 11,
-                    height: 1.3,
-                  ),
-                ),
-              ],
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: ChronoTheme.textMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: ChronoTheme.textSecondary,
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
 // ── Empty State ───────────────────────────────────────────────────────────────
 
-class _EmptyCabinetState extends StatelessWidget {
+class _EmptyState extends StatelessWidget {
   final bool hasQuery;
   final VoidCallback onResetFilters;
 
-  const _EmptyCabinetState({
-    required this.hasQuery,
-    required this.onResetFilters,
-  });
+  const _EmptyState({required this.hasQuery, required this.onResetFilters});
 
   @override
   Widget build(BuildContext context) {
@@ -996,37 +682,22 @@ class _EmptyCabinetState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: ChronoTheme.surfaceElevated,
-                shape: BoxShape.circle,
-                border: Border.all(color: ChronoTheme.border),
-              ),
-              child: const Icon(
-                Icons.medication_outlined,
-                size: 28,
-                color: ChronoTheme.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
             Text(
-              hasQuery ? 'No matching prescriptions' : 'Cabinet is Empty',
+              hasQuery ? 'No matching medications' : 'No medications yet',
               style: const TextStyle(
-                color: ChronoTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+                color: ChronoTheme.textSecondary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               hasQuery
-                  ? 'No medications matched your filter criteria.'
-                  : 'Add your medications to compute an optimal circadian schedule.',
+                  ? 'Try a different filter or search term.'
+                  : 'Add your first medication using the button below.',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: ChronoTheme.textSecondary,
+                color: ChronoTheme.textMuted,
                 fontSize: 12,
                 height: 1.4,
               ),
@@ -1036,7 +707,7 @@ class _EmptyCabinetState extends StatelessWidget {
               TextButton(
                 onPressed: onResetFilters,
                 child: const Text(
-                  'Reset Filters',
+                  'Clear filters',
                   style: TextStyle(
                     color: ChronoTheme.primary,
                     fontWeight: FontWeight.w600,
