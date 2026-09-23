@@ -25,10 +25,9 @@ class PhysicianSummarySheet extends StatelessWidget {
     final buffer = StringBuffer();
     buffer.writeln('# ChronoMed — Clinical Chronotherapy Regimen Summary');
     buffer.writeln('Generated: ${DateTime.now().toLocal().toString().substring(0, 16)}');
-    buffer.writeln('CSP Solver Validation: VERIFIED (Zero Clinical Violations)');
-    buffer.writeln('Fail-Closed Safety: Active');
+    buffer.writeln('Validation Status: Verified (Zero interaction or timing conflicts)');
     buffer.writeln('');
-    buffer.writeln('## 1. Patient Circadian Architecture');
+    buffer.writeln('## Patient Circadian Anchors');
     buffer.writeln('- Wake Time: ${IntervalMath.formatMinuteOfDay(state.routine.wakeTimeMinutes)}');
     buffer.writeln('- Sleep Time: ${IntervalMath.formatMinuteOfDay(state.routine.sleepTimeMinutes)}');
     buffer.writeln('- Diurnal Window: ${state.routine.wakingDurationMinutes ~/ 60}h ${state.routine.wakingDurationMinutes % 60}m active');
@@ -36,7 +35,7 @@ class PhysicianSummarySheet extends StatelessWidget {
       buffer.writeln('- ${meal.displayName}: ${IntervalMath.formatMinuteOfDay(meal.startTimeMinutes)}');
     }
     buffer.writeln('');
-    buffer.writeln('## 2. Chronotherapeutic Dosing Schedule');
+    buffer.writeln('## Chronotherapeutic Dosing Schedule');
     if (state.doses.isEmpty) {
       buffer.writeln('No active doses scheduled.');
     } else {
@@ -53,23 +52,23 @@ class PhysicianSummarySheet extends StatelessWidget {
         if (rules != null) {
           buffer.writeln('- Window: ${rules.circadianPreference.displayName}');
           if (rules.requiresEmptyStomach) {
-            buffer.writeln('- Prandial Constraint: Fasting (≥60m pre-meal / ≥120m post-meal)');
+            buffer.writeln('- Food Constraint: Fasting (≥60m pre-meal / ≥120m post-meal)');
           }
           if (rules.requiresFood) {
-            buffer.writeln('- Prandial Constraint: With Food (Co-administration with meal lipids/carbs)');
+            buffer.writeln('- Food Constraint: Take with meal');
           }
           if (rules.separationConstraints.isNotEmpty) {
-            buffer.writeln('- Chelation Separation: ≥240m gap from ${rules.separationConstraints.map((c) => c.targetIdentifier).join(', ')}');
+            buffer.writeln('- Interaction Separation: ≥4h gap from ${rules.separationConstraints.map((c) => c.targetIdentifier).join(', ')}');
           }
         }
         buffer.writeln('');
       }
     }
-    buffer.writeln('## 3. Mathematical Safety Verification');
-    buffer.writeln('- Engine Runtime: Pure Dart 3.5 AOT');
-    buffer.writeln('- Method: Deterministic Constraint Satisfaction Problem (CSP) + MRV');
-    buffer.writeln('- Solve Duration: ${state.lastSolveDurationMs}ms (0ms network latency)');
-    buffer.writeln('- Mandate: Zero-LLM hallucination guarantee');
+    buffer.writeln('## Clinical Parameters & Safety Guarantees');
+    buffer.writeln('- Interaction Separation: ≥4 hours between binding agents (e.g., calcium, iron, levothyroxine)');
+    buffer.writeln('- Fasting Absorption Windows: ≥60 min pre-meal or ≥120 min post-meal where indicated');
+    buffer.writeln('- Circadian Timing: Peak efficacy aligned with diurnal biological rhythms');
+    buffer.writeln('- Verification Method: Deterministic constraint satisfaction analysis');
     return buffer.toString();
   }
 
@@ -108,43 +107,30 @@ class PhysicianSummarySheet extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.cyanSurface,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
-                  ),
-                  child: const Icon(
-                    Icons.assignment_outlined,
-                    color: ChronoTheme.primary,
-                    size: 20,
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Physician summary',
+                        style: TextStyle(
+                          color: ChronoTheme.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'EHR-formatted chronotherapy consultation report',
+                        style: TextStyle(
+                          color: ChronoTheme.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Physician Clinical Summary',
-                      style: TextStyle(
-                        color: ChronoTheme.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    Text(
-                      'EHR-formatted chronotherapy review',
-                      style: TextStyle(
-                        color: ChronoTheme.textSecondary,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, color: ChronoTheme.textSecondary, size: 20),
                   onPressed: () => Navigator.pop(context),
@@ -175,7 +161,7 @@ class PhysicianSummarySheet extends StatelessWidget {
                         SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Deterministic CSP Solved: All drug-food & chelation constraints verified.',
+                            'Regimen validated: All drug timing, food, and interaction constraints satisfied.',
                             style: TextStyle(
                               color: ChronoTheme.secondary,
                               fontSize: 12,
@@ -187,10 +173,10 @@ class PhysicianSummarySheet extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
 
                   // Section 1: Patient Circadian Anchors
-                  _buildSectionHeader('1. CIRCADIAN BASELINE', Icons.access_time_rounded),
+                  _buildSectionHeader('Circadian baseline'),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -210,10 +196,10 @@ class PhysicianSummarySheet extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
 
                   // Section 2: Chronotherapy Dosing Regimen Table
-                  _buildSectionHeader('2. OPTIMIZED DOSING REGIMEN', Icons.medication_outlined),
+                  _buildSectionHeader('Dosing schedule'),
                   const SizedBox(height: 8),
                   if (doses.isEmpty)
                     Container(
@@ -233,10 +219,10 @@ class PhysicianSummarySheet extends StatelessWidget {
                   else
                     ...doses.map((dose) => _buildDoseReportCard(dose)),
 
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
 
                   // Section 3: Safety & Non-Hallucination Guarantees
-                  _buildSectionHeader('3. CLINICAL GUARANTEES', Icons.shield_outlined),
+                  _buildSectionHeader('Clinical parameters'),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -248,10 +234,10 @@ class PhysicianSummarySheet extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildProfileRow('Deterministic Algorithm', 'Backtracking CSP + MRV'),
-                        _buildProfileRow('Execution Latency', '${state.lastSolveDurationMs}ms (Pure Dart AOT)'),
-                        _buildProfileRow('Polyvalent Cation Gap', '≥ 240m Mandatory Gap'),
-                        _buildProfileRow('Gastric Fasting Buffer', '≥ 60m pre / ≥ 120m post meal'),
+                        _buildProfileRow('Conflict resolution', 'Constraint satisfaction analysis'),
+                        _buildProfileRow('Interaction separation', '≥ 4h between binding cations (Ca²⁺/Fe²⁺)'),
+                        _buildProfileRow('Fasting buffer', '≥ 60m before / ≥ 120m after meals'),
+                        _buildProfileRow('Absorption status', 'Optimized for circadian drug targets'),
                       ],
                     ),
                   ),
@@ -261,7 +247,7 @@ class PhysicianSummarySheet extends StatelessWidget {
                   // Action Buttons: Copy to Clipboard
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 48,
                     child: ElevatedButton.icon(
                       onPressed: () {
                         final text = _generateMarkdownReport();
@@ -287,7 +273,7 @@ class PhysicianSummarySheet extends StatelessWidget {
                       },
                       icon: const Icon(Icons.copy_rounded, size: 18),
                       label: const Text(
-                        'Copy Physician Summary (EHR Ready)',
+                        'Copy EHR summary',
                         style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -295,7 +281,7 @@ class PhysicianSummarySheet extends StatelessWidget {
                         foregroundColor: ChronoTheme.obsidian,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ),
@@ -309,21 +295,14 @@ class PhysicianSummarySheet extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String text, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: ChronoTheme.textSecondary),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: const TextStyle(
-            color: ChronoTheme.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.7,
-          ),
-        ),
-      ],
+  Widget _buildSectionHeader(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: ChronoTheme.textPrimary,
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 

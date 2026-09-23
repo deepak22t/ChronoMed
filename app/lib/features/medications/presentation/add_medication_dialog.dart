@@ -166,46 +166,33 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
 
           // Header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Row(
               children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.surfaceElevated,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: ChronoTheme.border),
-                  ),
-                  child: const Icon(
-                    Icons.medication_outlined,
-                    color: ChronoTheme.primary,
-                    size: 20,
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Add medication',
+                        style: TextStyle(
+                          color: ChronoTheme.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Search catalog or enter custom details',
+                        style: TextStyle(
+                          color: ChronoTheme.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Add Prescription',
-                      style: TextStyle(
-                        color: ChronoTheme.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    Text(
-                      'Clinical pharmacokinetic parameters',
-                      style: TextStyle(
-                        color: ChronoTheme.textSecondary,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
                 IconButton(
                   icon: const Icon(
                     Icons.close_rounded,
@@ -227,7 +214,7 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // FDA Catalog Search
-                  _buildSectionHeader('SEARCH FDA CATALOG', Icons.search_rounded),
+                  _buildSectionHeader('Search catalog'),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _searchController,
@@ -385,7 +372,7 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
                   const SizedBox(height: 18),
 
                   // Medication Name & Dosage Inputs
-                  _buildSectionHeader('MEDICATION DETAILS', Icons.edit_note_rounded),
+                  _buildSectionHeader('Medication details'),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _nameController,
@@ -436,7 +423,7 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
                         color: ChronoTheme.textSecondary,
                         fontSize: 13,
                       ),
-                      hintText: 'e.g. 50 mcg, 500 mg, 1 tablet',
+                      hintText: 'e.g. 50 mcg, 500 mg',
                       filled: true,
                       fillColor: ChronoTheme.surfaceElevated,
                       contentPadding: const EdgeInsets.symmetric(
@@ -464,25 +451,19 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
                   const SizedBox(height: 18),
 
                   // Preferred Circadian Window
-                  _buildSectionHeader(
-                    'CIRCADIAN TIMING WINDOW',
-                    Icons.access_time_rounded,
-                  ),
+                  _buildSectionHeader('Preferred timing'),
                   const SizedBox(height: 8),
                   _buildCircadianSegmented(),
 
                   const SizedBox(height: 18),
 
                   // Pharmacokinetic & Prandial Constraints
-                  _buildSectionHeader(
-                    'PHARMACOKINETIC CONSTRAINTS',
-                    Icons.science_outlined,
-                  ),
+                  _buildSectionHeader('Food & interaction rules'),
                   const SizedBox(height: 8),
                   _RuleToggleCard(
                     icon: Icons.no_meals_outlined,
-                    label: 'Empty Stomach Required',
-                    subtitle: '60m before or 120m after any meal',
+                    label: 'Take on empty stomach',
+                    subtitle: '60 min before or 120 min after eating',
                     active: _requiresEmptyStomach && !_requiresFood,
                     activeColor: ChronoTheme.primary,
                     onToggle: () {
@@ -495,8 +476,8 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
                   const SizedBox(height: 8),
                   _RuleToggleCard(
                     icon: Icons.restaurant_outlined,
-                    label: 'Requires Food Co-administration',
-                    subtitle: 'Must be ingested during or right after a meal',
+                    label: 'Take with food',
+                    subtitle: 'During or right after a meal',
                     active: _requiresFood && !_requiresEmptyStomach,
                     activeColor: ChronoTheme.secondary,
                     onToggle: () {
@@ -509,8 +490,8 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
                   const SizedBox(height: 8),
                   _RuleToggleCard(
                     icon: Icons.sync_problem_rounded,
-                    label: 'Polyvalent Cation Chelation',
-                    subtitle: 'Requires ≥ 4h gap from Calcium & Iron',
+                    label: 'Separate from Calcium / Iron',
+                    subtitle: 'Requires 4-hour gap from minerals and supplements',
                     active: _hasCationConflict,
                     activeColor: ChronoTheme.rose,
                     onToggle: () {
@@ -525,7 +506,7 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
                   // Submit Button
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 48,
                     child: ElevatedButton(
                       onPressed: _submit,
                       style: ElevatedButton.styleFrom(
@@ -533,23 +514,16 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
                         foregroundColor: ChronoTheme.obsidian,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check_rounded, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'Save to Daily Regimen',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ],
+                      child: const Text(
+                        'Save medication',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
                       ),
                     ),
                   ),
@@ -562,21 +536,15 @@ class _AddMedicationSheetState extends State<AddMedicationSheet> {
     );
   }
 
-  Widget _buildSectionHeader(String text, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: ChronoTheme.textSecondary),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: const TextStyle(
-            color: ChronoTheme.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.7,
-          ),
-        ),
-      ],
+  Widget _buildSectionHeader(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: ChronoTheme.textMuted,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.3,
+      ),
     );
   }
 
@@ -695,22 +663,12 @@ class _RuleToggleCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: active
-                    ? activeColor.withOpacity(0.15)
-                    : ChronoTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: active ? activeColor : ChronoTheme.textSecondary,
-                size: 17,
-              ),
+            Icon(
+              icon,
+              color: active ? activeColor : ChronoTheme.textSecondary,
+              size: 20,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

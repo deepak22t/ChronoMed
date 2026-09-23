@@ -55,42 +55,28 @@ class InteractionMatrixSheet extends StatelessWidget {
 
           // Header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Row(
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.cyanSurface,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
-                  ),
-                  child: const Icon(
-                    Icons.hub_outlined,
-                    color: ChronoTheme.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
                 const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Pharmacokinetic Safety Matrix',
+                        'Safety matrix',
                         style: TextStyle(
                           color: ChronoTheme.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
                         ),
                       ),
+                      SizedBox(height: 2),
                       Text(
-                        'Pairwise chelation, absorption gaps & circadian peaks',
+                        'Drug interactions and timing separation',
                         style: TextStyle(
                           color: ChronoTheme.textSecondary,
-                          fontSize: 11,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -111,35 +97,32 @@ class InteractionMatrixSheet extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               children: [
-                // Telemetry Metrics Row
+                // Summary Metrics Row
                 Row(
                   children: [
                     Expanded(
                       child: _MetricTile(
-                        label: 'PAIRS ANALYZED',
+                        label: 'Pairs',
                         value: '${pairs.length}',
-                        subtext: 'Regimen combinations',
-                        icon: Icons.biotech_outlined,
+                        subtext: 'Combinations',
                         color: ChronoTheme.primary,
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: _MetricTile(
-                        label: 'ISOLATED RISKS',
+                        label: 'Separated',
                         value: '$conflictCount',
-                        subtext: 'Chelation guards active',
-                        icon: Icons.shield_outlined,
+                        subtext: 'Guards active',
                         color: conflictCount > 0 ? ChronoTheme.secondary : ChronoTheme.textSecondary,
                       ),
                     ),
                     const SizedBox(width: 10),
                     const Expanded(
                       child: _MetricTile(
-                        label: 'BIOAVAILABILITY',
+                        label: 'Bioavailability',
                         value: '100%',
                         subtext: 'Zero timing loss',
-                        icon: Icons.verified_outlined,
                         color: ChronoTheme.secondary,
                       ),
                     ),
@@ -150,9 +133,8 @@ class InteractionMatrixSheet extends StatelessWidget {
 
                 // Section 1: Pairwise Interactions
                 const _SubSectionTitle(
-                  title: 'PAIRWISE INTERACTION DIAGNOSTICS',
-                  subtitle: 'Mathematical proof of chemical timing separation',
-                  icon: Icons.swap_horiz_rounded,
+                  title: 'Pairwise interactions',
+                  subtitle: 'Verified chemical timing separation between drug pairs',
                 ),
                 const SizedBox(height: 10),
 
@@ -165,7 +147,7 @@ class InteractionMatrixSheet extends StatelessWidget {
                       border: Border.all(color: ChronoTheme.border),
                     ),
                     child: const Text(
-                      'Add 2 or more medications to evaluate pairwise pharmacokinetic interactions.',
+                      'Add 2 or more medications to evaluate pairwise interactions.',
                       style: TextStyle(color: ChronoTheme.textSecondary, fontSize: 12),
                     ),
                   )
@@ -176,9 +158,8 @@ class InteractionMatrixSheet extends StatelessWidget {
 
                 // Section 2: Circadian Chronobiology Rationale
                 const _SubSectionTitle(
-                  title: 'CIRCADIAN PEAK ALIGNMENTS',
-                  subtitle: 'Biological rationale for each molecule dosing hour',
-                  icon: Icons.access_time_rounded,
+                  title: 'Timing rationale',
+                  subtitle: 'Biological justification for each dosing window',
                 ),
                 const SizedBox(height: 10),
 
@@ -699,14 +680,12 @@ class _MetricTile extends StatelessWidget {
   final String label;
   final String value;
   final String subtext;
-  final IconData icon;
   final Color color;
 
   const _MetricTile({
     required this.label,
     required this.value,
     required this.subtext,
-    required this.icon,
     required this.color,
   });
 
@@ -722,29 +701,22 @@ class _MetricTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: color),
-              const Spacer(),
-              Text(
-                value,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  fontFamily: ChronoTheme.monoFont,
-                ),
-              ),
-            ],
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              fontFamily: ChronoTheme.monoFont,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             label,
             style: const TextStyle(
               color: ChronoTheme.textSecondary,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 2),
@@ -768,41 +740,31 @@ class _MetricTile extends StatelessWidget {
 class _SubSectionTitle extends StatelessWidget {
   final String title;
   final String subtitle;
-  final IconData icon;
 
   const _SubSectionTitle({
     required this.title,
     required this.subtitle,
-    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 14, color: ChronoTheme.textSecondary),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: ChronoTheme.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: ChronoTheme.textSecondary,
-                  fontSize: 10,
-                ),
-              ),
-            ],
+        Text(
+          title,
+          style: const TextStyle(
+            color: ChronoTheme.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: ChronoTheme.textSecondary,
+            fontSize: 11,
           ),
         ),
       ],

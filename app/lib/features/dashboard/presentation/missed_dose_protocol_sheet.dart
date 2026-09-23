@@ -62,42 +62,28 @@ class MissedDoseProtocolSheet extends StatelessWidget {
 
           // Header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Row(
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.cyanSurface,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
-                  ),
-                  child: const Icon(
-                    Icons.history_toggle_off_rounded,
-                    color: ChronoTheme.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Clinical Missed-Dose Protocol',
+                      const Text(
+                        'Missed-dose guidance',
                         style: TextStyle(
                           color: ChronoTheme.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        'Pharmacokinetic grace windows & cascading shifts',
-                        style: TextStyle(
+                        '${dose.medicationName} (${dose.dosage})  ·  ${dose.formattedTime}',
+                        style: const TextStyle(
                           color: ChronoTheme.textSecondary,
-                          fontSize: 11,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -118,124 +104,62 @@ class MissedDoseProtocolSheet extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               children: [
-                // Dose Summary Card
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.surfaceElevated,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: ChronoTheme.border),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: ChronoTheme.obsidian,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: ChronoTheme.border),
-                        ),
-                        child: Text(
-                          dose.formattedTime,
-                          style: const TextStyle(
-                            color: ChronoTheme.primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: ChronoTheme.monoFont,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${dose.medicationName} (${dose.dosage})',
-                              style: const TextStyle(
-                                color: ChronoTheme.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              dose.clinicalInstruction,
-                              style: const TextStyle(
-                                color: ChronoTheme.textSecondary,
-                                fontSize: 11,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                // Authoritative Protocol Card
+                // Clinical Protocol Card
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: ChronoTheme.surfaceElevated,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
+                    border: Border.all(color: ChronoTheme.border),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.verified_outlined, size: 16, color: ChronoTheme.primary),
-                          const SizedBox(width: 8),
                           const Text(
-                            'AUTHORITATIVE PHARMACOKINETIC GUIDANCE',
+                            'Action to take',
                             style: TextStyle(
-                              color: ChronoTheme.primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
+                              color: ChronoTheme.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: ChronoTheme.obsidian,
+                              color: ChronoTheme.cyanSurface,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: ChronoTheme.border),
+                              border: Border.all(color: ChronoTheme.primary.withOpacity(0.3)),
                             ),
                             child: Text(
                               protocol.graceWindow,
                               style: const TextStyle(
-                                color: ChronoTheme.secondary,
-                                fontSize: 10,
+                                color: ChronoTheme.primary,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Text(
                         protocol.actionRule,
                         style: const TextStyle(
                           color: ChronoTheme.textPrimary,
                           fontSize: 13,
                           height: 1.45,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 10),
                       Text(
                         protocol.pharmacologyRationale,
                         style: const TextStyle(
-                          color: ChronoTheme.textSecondary,
-                          fontSize: 11.5,
+                          color: ChronoTheme.textMuted,
+                          fontSize: 12,
                           height: 1.4,
                         ),
                       ),
@@ -243,27 +167,21 @@ class MissedDoseProtocolSheet extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
 
-                // Interactive Late Dose Logger (Dynamic Recalibrator Trigger)
-                const Row(
-                  children: [
-                    Icon(Icons.tune_rounded, size: 14, color: ChronoTheme.textSecondary),
-                    SizedBox(width: 6),
-                    Text(
-                      'LOG DELAYED CONSUMPTION (CASCADE RECALIBRATION)',
-                      style: TextStyle(
-                        color: ChronoTheme.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
+                // Interactive Late Dose Logger
                 const Text(
-                  'Taking this dose late triggers the CSP solver to push dependent meals and subsequent interacting medications (e.g. chelation buffers) forward.',
-                  style: TextStyle(color: ChronoTheme.textMuted, fontSize: 11, height: 1.35),
+                  'Log delayed dose',
+                  style: TextStyle(
+                    color: ChronoTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Automatically shifts dependent meals and subsequent medications to preserve safety buffers.',
+                  style: TextStyle(color: ChronoTheme.textMuted, fontSize: 12, height: 1.35),
                 ),
                 const SizedBox(height: 12),
 
@@ -272,60 +190,60 @@ class MissedDoseProtocolSheet extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _OffsetChip(
-                        label: '+30m Late',
+                        label: '+30 min',
                         onTap: () => _applyLateDose(context, dose.scheduledMinute + 30),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: _OffsetChip(
-                        label: '+60m Late',
+                        label: '+1 hour',
                         onTap: () => _applyLateDose(context, dose.scheduledMinute + 60),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: _OffsetChip(
-                        label: '+120m Late',
+                        label: '+2 hours',
                         onTap: () => _applyLateDose(context, dose.scheduledMinute + 120),
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
 
                 // Golden Rule: Never Double Dose
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: ChronoTheme.obsidian,
+                    color: ChronoTheme.surfaceElevated,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: ChronoTheme.rose.withOpacity(0.35)),
                   ),
                   child: const Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.warning_amber_rounded, color: ChronoTheme.rose, size: 18),
+                      Icon(Icons.info_outline_rounded, color: ChronoTheme.rose, size: 18),
                       SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Universal Golden Rule: Never Double Dose',
+                              'Do not double dose',
                               style: TextStyle(
                                 color: ChronoTheme.rose,
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                             SizedBox(height: 3),
                             Text(
-                              'If your next scheduled dose is less than 4 hours away, skip the missed dose entirely. Doubling causes supra-therapeutic plasma toxicity.',
+                              'If your next dose is within 4 hours, skip this missed dose entirely. Never take two doses at once.',
                               style: TextStyle(
                                 color: ChronoTheme.textSecondary,
-                                fontSize: 11,
+                                fontSize: 12,
                                 height: 1.35,
                               ),
                             ),
@@ -346,8 +264,8 @@ class MissedDoseProtocolSheet extends StatelessWidget {
                     onPressed: () => _copyProtocol(context, protocol),
                     icon: const Icon(Icons.copy_rounded, size: 15),
                     label: const Text(
-                      'Copy Missed-Dose Advisory to Clipboard',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+                      'Copy guidance to clipboard',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: ChronoTheme.primary,
