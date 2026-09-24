@@ -5,6 +5,7 @@ import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import '../../../main.dart' show defaultRoutine, defaultMedications;
 import '../../timeline/presentation/timeline_painter.dart';
+import '../../ai_assistant/presentation/ai_consultation_sheet.dart';
 import 'missed_dose_protocol_sheet.dart';
 
 /// Today Screen — primary user destination.
@@ -110,6 +111,34 @@ class _TodayHeader extends StatelessWidget {
                   ],
                 ),
               ),
+              // AI Clinical Explainer Button
+              GestureDetector(
+                onTap: () => AiConsultationSheet.show(context, state),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: ChronoTheme.cyanSurface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.35)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome_rounded, size: 12, color: ChronoTheme.primary),
+                      SizedBox(width: 4),
+                      Text(
+                        'Ask AI',
+                        style: TextStyle(
+                          color: ChronoTheme.primary,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               // Adherence fraction — compact, non-decorative
               _AdherencePill(taken: state.takenCount, total: state.totalDoses),
             ],
@@ -727,6 +756,34 @@ class _DoseDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
+          // Ask AI about dose
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                AiConsultationSheet.show(
+                  context,
+                  state,
+                  focusMedication: dose.medicationName,
+                  initialQuestion: 'Why is ${dose.medicationName} (${dose.dosage}) scheduled at ${dose.formattedTime}?',
+                );
+              },
+              icon: const Icon(Icons.auto_awesome_rounded, size: 14),
+              label: Text('Ask AI about ${dose.medicationName}'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: ChronoTheme.primary,
+                side: BorderSide(color: ChronoTheme.primary.withOpacity(0.35)),
+                backgroundColor: ChronoTheme.primary.withOpacity(0.06),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
           // Missed/delayed protocol
           SizedBox(
             width: double.infinity,
@@ -736,8 +793,8 @@ class _DoseDetailSheet extends StatelessWidget {
                 MissedDoseProtocolSheet.show(context, dose, state);
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: ChronoTheme.primary,
-                side: BorderSide(color: ChronoTheme.primary.withOpacity(0.35)),
+                foregroundColor: ChronoTheme.textSecondary,
+                side: const BorderSide(color: ChronoTheme.border),
                 padding: const EdgeInsets.symmetric(vertical: 11),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),

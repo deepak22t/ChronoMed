@@ -13,6 +13,7 @@ dependencies:
     path: ../core_engine
   clinical_data:
     path: ../clinical_data
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

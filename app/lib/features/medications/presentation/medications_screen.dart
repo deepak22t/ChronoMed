@@ -5,6 +5,7 @@ import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import 'add_medication_dialog.dart';
 import 'interaction_matrix_sheet.dart';
+import '../../ai_assistant/presentation/ai_consultation_sheet.dart';
 
 enum _MedFilter { all, emptyStomach, withFood, separationRequired }
 
@@ -138,6 +139,7 @@ class _MedicationsScreenState extends State<MedicationsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _MedicationDetailSheet(
         med: med,
+        state: state,
         onOpenMatrix: () {
           Navigator.pop(context);
           InteractionMatrixSheet.show(context, state);
@@ -484,11 +486,13 @@ class _MedicationCard extends StatelessWidget {
 
 class _MedicationDetailSheet extends StatelessWidget {
   final Medication med;
+  final AppState state;
   final VoidCallback onOpenMatrix;
   final VoidCallback onDelete;
 
   const _MedicationDetailSheet({
     required this.med,
+    required this.state,
     required this.onOpenMatrix,
     required this.onDelete,
   });
@@ -581,6 +585,34 @@ class _MedicationDetailSheet extends StatelessWidget {
           ],
 
           const SizedBox(height: 20),
+
+          // Ask AI about this medication
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                AiConsultationSheet.show(
+                  context,
+                  state,
+                  focusMedication: med.name,
+                  initialQuestion: 'Can you explain the optimal chronotherapy window, food rules, and side effects for ${med.name} (${med.dosage})?',
+                );
+              },
+              icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+              label: Text('Ask AI about ${med.name}'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: ChronoTheme.primary,
+                side: BorderSide(color: ChronoTheme.primary.withOpacity(0.35)),
+                backgroundColor: ChronoTheme.primary.withOpacity(0.06),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
 
           SizedBox(
             width: double.infinity,

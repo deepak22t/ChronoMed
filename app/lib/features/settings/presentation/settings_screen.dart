@@ -6,6 +6,7 @@ import '../../../core/theme/chrono_theme.dart';
 import '../../../main.dart' show defaultRoutine, defaultMedications;
 import '../../dashboard/presentation/missed_dose_protocol_sheet.dart';
 import 'physician_summary_sheet.dart';
+import '../../ai_assistant/presentation/ai_consultation_sheet.dart';
 
 /// Settings screen — routine anchors, clinical care, and danger zone.
 ///
@@ -176,6 +177,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const _SectionLabel('Clinical Care'),
                   const SizedBox(height: 10),
 
+                  _ActionTile(
+                    icon: Icons.auto_awesome_rounded,
+                    label: 'ChronoMed AI Assistant',
+                    subtitle: 'Ask about timing, food rules, and side effects',
+                    onTap: () => AiConsultationSheet.show(context, state),
+                  ),
+                  const Divider(color: ChronoTheme.border, height: 1),
                   _ActionTile(
                     icon: Icons.description_outlined,
                     label: 'Physician summary',
