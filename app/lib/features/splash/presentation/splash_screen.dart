@@ -114,7 +114,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090D14), // Midnight slate
+      backgroundColor: Colors.black,
       body: SizedBox.expand(
         child: _isInitialized && _controller.value.isInitialized
             ? FittedBox(
@@ -127,40 +127,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   child: VideoPlayer(_controller),
                 ),
               )
-            : Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0D9488).withOpacity(0.12),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF0D9488).withOpacity(0.3),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.medication_rounded,
-                        color: Color(0xFF2DD4BF),
-                        size: 36,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    const Text(
-                      'ChronoMed',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            : const SizedBox.expand(),
       ),
     );
   }

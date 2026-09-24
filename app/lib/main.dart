@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:core_engine/core_engine.dart';
 import 'core/state/app_state.dart';
 import 'core/state/app_state_provider.dart';
@@ -110,6 +111,8 @@ final defaultMedications = <Medication>[
 // ── Entry Point ──────────────────────────────────────────────────────────────
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   runApp(
     AppStateProvider(
       state: AppState(
