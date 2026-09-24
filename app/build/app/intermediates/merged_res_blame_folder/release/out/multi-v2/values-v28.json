@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.example.app-mergeReleaseResources-25:/values-v28/values-v28.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\deepak.kumar\\Downloads\\project1\\app\\android\\app\\src\\main\\res\\values-v28\\styles.xml",
+                    "from": {
+                        "startLines": "2,7",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,364",
+                        "endLines": "6,10",
+                        "endColumns": "12,12",
+                        "endOffsets": "359,607"
+                    }
+                }
+            ]
+        }
+    ]
+}
