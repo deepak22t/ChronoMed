@@ -1,0 +1,4 @@
+#Thu Sep 24 23:34:37 IST 2026
+base.0=C\:\\Users\\deepak.kumar\\Downloads\\project1\\app\\build\\app\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
+renamed.0=classes.dex
+path.0=classes.dex
