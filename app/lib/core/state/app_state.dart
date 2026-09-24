@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:core_engine/core_engine.dart';
+import '../network/api_service.dart';
 
 /// Central application state for ChronoMed.
 ///
 /// Holds the user's routine, medication list, and the computed daily schedule.
-/// Exposes mutation methods that always recompute the schedule after changes.
+/// Exposes mutation methods that sync dynamically with the FastAPI SQLite backend.
 ///
 /// Uses [ChangeNotifier] — no external packages required.
 class AppState extends ChangeNotifier {
@@ -16,6 +17,15 @@ class AppState extends ChangeNotifier {
   int _currentMinuteOfDay;
   bool _isOversleptMode = false;
   Timer? _clockTimer;
+
+  // ── Dynamic Backend Fields ──────────────────────────────────────────────
+  bool _isBackendConnected = false;
+  bool _isLoadingBackend = false;
+  String? _backendPatientName;
+  String? _backendCortisolBadge;
+  int? _backendAdherenceRate;
+  List<Map<String, dynamic>> _backendDoses = [];
+  List<Map<String, dynamic>> _backendMeals = [];
 
   // ── Constructor ─────────────────────────────────────────────────────────
   AppState({
@@ -32,7 +42,18 @@ class AppState extends ChangeNotifier {
         ) {
     _solve();
     _startClock();
+    syncWithBackend();
   }
+
+  // ── Dynamic Backend Getters ─────────────────────────────────────────────
+  bool get isBackendConnected => _isBackendConnected;
+  bool get isLoadingBackend => _isLoadingBackend;
+  String get patientName => _backendPatientName ?? 'HARRY J.';
+  String get cortisolBadge => _backendCortisolBadge ?? 'Morning Cortisol Peak • 09:45 AM';
+  int get dynamicAdherenceRate => _backendAdherenceRate ?? (adherenceRatio * 100).round();
+  List<Map<String, dynamic>> get backendDoses => _backendDoses;
+  List<Map<String, dynamic>> get backendMeals => _backendMeals;
+
 
   // ── Public Getters ───────────────────────────────────────────────────────
   Routine get routine => _routine;
@@ -95,6 +116,57 @@ class AppState extends ChangeNotifier {
     markDoseTakenAt(medicationId, _currentMinuteOfDay);
   }
 
+  /// Synchronize schedule, patient data, and status with FastAPI backend.
+  Future<void> syncWithBackend() async {
+    _isLoadingBackend = true;
+    notifyListeners();
+    try {
+      final data = await ApiService.fetchTodayTimeline();
+      final patient = data['patient'] as Map<String, dynamic>?;
+      if (patient != null) {
+        _backendPatientName = patient['name'] as String?;
+        _backendCortisolBadge = data['cortisol_badge'] as String?;
+        _backendAdherenceRate = data['adherence_rate'] as int?;
+      }
+      if (data['doses'] is List) {
+        _backendDoses = List<Map<String, dynamic>>.from(data['doses'] as List);
+      }
+      if (data['meal_anchors'] is List) {
+        _backendMeals = List<Map<String, dynamic>>.from(data['meal_anchors'] as List);
+      }
+      _isBackendConnected = true;
+    } catch (e) {
+      debugPrint('FastAPI backend sync info (using local solver baseline): $e');
+    } finally {
+      _isLoadingBackend = false;
+      notifyListeners();
+    }
+  }
+
+  /// Toggle dose and immediately sync with SQLite backend.
+  Future<void> toggleDoseBackend(String doseOrMedicationId) async {
+    // 1. Local state update
+    toggleDose(doseOrMedicationId);
+
+    // 2. Map to SQLite dose ID if needed
+    String sqliteDoseId = doseOrMedicationId;
+    if (doseOrMedicationId.contains('levo')) {
+      sqliteDoseId = 'dose_levo_0700';
+    } else if (doseOrMedicationId.contains('multi')) {
+      sqliteDoseId = 'dose_multi_1000';
+    } else if (doseOrMedicationId.contains('calc')) {
+      sqliteDoseId = 'dose_calc_1530';
+    }
+
+    // 3. Remote SQLite sync
+    try {
+      await ApiService.toggleDose(sqliteDoseId);
+      await syncWithBackend();
+    } catch (e) {
+      debugPrint('FastAPI dose toggle sync notice: $e');
+    }
+  }
+
   /// Toggle a dose between taken and scheduled.
   void toggleDose(String doseOrMedicationId) {
     final dose = doses.cast<ScheduledDose?>().firstWhere(
@@ -108,6 +180,7 @@ class AppState extends ChangeNotifier {
       markDoseTaken(dose.medicationId);
     }
   }
+
 
   /// Mark a dose as taken at an explicit minute of the day and dynamically recalibrate.
   void markDoseTakenAt(String medicationId, int minuteOfDay) {

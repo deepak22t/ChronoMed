@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/theme/chrono_theme.dart';
 import '../../../core/services/ai_service.dart';
+import '../../../core/network/api_service.dart';
+
 
 /// Interactive AI Consultation Sheet
 ///
@@ -137,12 +139,24 @@ class _AiConsultationSheetState extends State<AiConsultationSheet> {
           .map((m) => {'role': m.role, 'content': m.text})
           .toList();
 
-      final reply = await AiService.ask(
-        question: question,
-        state: widget.state,
-        focusMedication: widget.focusMedication,
-        chatHistory: history,
-      );
+      String reply;
+      try {
+        final apiRes = await ApiService.consultAi(
+          query: question,
+          patientId: 1,
+          history: history,
+        );
+        reply = apiRes['answer'] as String? ?? 'Consultation received.';
+      } catch (backendErr) {
+        debugPrint('FastAPI backend consult notice (using client AI): $backendErr');
+        reply = await AiService.ask(
+          question: question,
+          state: widget.state,
+          focusMedication: widget.focusMedication,
+          chatHistory: history,
+        );
+      }
+
 
       if (mounted) {
         setState(() {

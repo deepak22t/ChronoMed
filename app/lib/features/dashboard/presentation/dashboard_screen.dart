@@ -113,9 +113,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Morning Cortisol Peak',
-                    style: TextStyle(
+                  Text(
+                    state.cortisolBadge.contains('•')
+                        ? state.cortisolBadge.split('•').first.trim()
+                        : state.cortisolBadge,
+                    style: const TextStyle(
                       color: Color(0xFFCCFBF1),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -150,9 +152,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // Right: User Profile Avatar
           Row(
             children: [
-              const Text(
-                'HARRY J.',
-                style: TextStyle(
+              Text(
+                state.patientName,
+                style: const TextStyle(
                   color: Color(0xFF94A3B8),
                   fontSize: 10.5,
                   fontWeight: FontWeight.w800,
@@ -171,10 +173,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     width: 1.2,
                   ),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
-                    'HJ',
-                    style: TextStyle(
+                    state.patientName
+                        .split(' ')
+                        .where((w) => w.isNotEmpty)
+                        .map((w) => w[0])
+                        .take(2)
+                        .join()
+                        .toUpperCase(),
+                    style: const TextStyle(
                       color: Color(0xFF38BDF8),
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
@@ -192,9 +200,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ── 2. Greeting Header ─────────────────────────────────────────────────────
   Widget _buildGreetingHeader(AppState state) {
     final hour = state.currentMinuteOfDay ~/ 60;
+    final firstName = state.patientName.split(' ').first;
+    final formattedName = firstName.length > 1
+        ? '${firstName[0].toUpperCase()}${firstName.substring(1).toLowerCase()}'
+        : firstName;
     final greeting = hour < 12
-        ? 'Good Morning, Harry.'
-        : (hour < 17 ? 'Good Afternoon, Harry.' : 'Good Evening, Harry.');
+        ? 'Good Morning, $formattedName.'
+        : (hour < 17 ? 'Good Afternoon, $formattedName.' : 'Good Evening, $formattedName.');
+
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 10, 22, 14),
@@ -446,8 +459,9 @@ class _CircadianDaylightTimeline extends StatelessWidget {
                 GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    state.toggleDose(dose.id);
+                    state.toggleDoseBackend(dose.id);
                   },
+
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1164,9 +1178,10 @@ class _ExactDoseDetailSheet extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: () {
                     HapticFeedback.mediumImpact();
-                    state.toggleDose(dose.id);
+                    state.toggleDoseBackend(dose.id);
                     Navigator.pop(context);
                   },
+
                   icon: Icon(isTaken ? Icons.undo_rounded : Icons.check_rounded, size: 16),
                   label: Text(isTaken ? 'Mark Pending' : 'Mark Taken'),
                   style: ElevatedButton.styleFrom(
