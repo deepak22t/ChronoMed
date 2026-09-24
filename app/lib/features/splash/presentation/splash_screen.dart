@@ -2,12 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
-import '../../../core/navigation/app_shell.dart';
+import '../../onboarding/presentation/onboarding_screen.dart';
 
 /// Full-screen Splash Video Screen for ChronoMed
 ///
-/// Automatically plays [assets/videos/splash.mp4] with audio on startup,
-/// then smoothly transitions into the main app shell.
+/// Automatically plays [assets/videos/splash.mp4] with audio on startup in true
+/// edge-to-edge immersive full-screen mode (no margins, no letterboxing),
+/// then smoothly transitions to the Onboarding Screen.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -24,8 +25,8 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // System UI immersive mode during splash
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Hide system bars completely for 100% edge-to-edge full-screen video
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _initVideo();
   }
 
@@ -33,7 +34,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // Safety fallback timer: navigate if video fails to complete within 10 seconds
     _fallbackTimer = Timer(const Duration(seconds: 10), () {
       if (!_hasNavigated) {
-        _navigateToHome();
+        _navigateToOnboarding();
       }
     });
 
@@ -54,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen> {
     } catch (e) {
       debugPrint('SplashScreen: Error initializing splash video: $e');
       // If video asset fails to load, navigate after 1.5 seconds
-      Timer(const Duration(milliseconds: 1500), _navigateToHome);
+      Timer(const Duration(milliseconds: 1500), _navigateToOnboarding);
     }
   }
 
@@ -66,11 +67,11 @@ class _SplashScreenState extends State<SplashScreen> {
 
     // Check if video reached its end (within 150ms of duration or position >= duration)
     if (dur > Duration.zero && (pos >= dur || dur - pos < const Duration(milliseconds: 150))) {
-      _navigateToHome();
+      _navigateToOnboarding();
     }
   }
 
-  void _navigateToHome() {
+  void _navigateToOnboarding() {
     if (_hasNavigated || !mounted) return;
     _hasNavigated = true;
     _fallbackTimer?.cancel();
@@ -80,11 +81,14 @@ class _SplashScreenState extends State<SplashScreen> {
       _controller.pause();
     } catch (_) {}
 
-    // Smooth fade transition to the main app shell
+    // Restore standard edge-to-edge system UI for normal app usage
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+    // Smooth fade transition to the Onboarding screen
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (context, animation, secondaryAnimation) => const AppShell(),
+        transitionDuration: const Duration(milliseconds: 600),
+        pageBuilder: (context, animation, secondaryAnimation) => const OnboardingScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
@@ -102,6 +106,8 @@ class _SplashScreenState extends State<SplashScreen> {
       _controller.removeListener(_onVideoUpdate);
       _controller.dispose();
     } catch (_) {}
+    // Ensure system UI is restored on dispose
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
@@ -109,88 +115,52 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF090D14), // Midnight slate
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Background and Video Layer
-          if (_isInitialized && _controller.value.isInitialized)
-            Center(
-              child: FittedBox(
+      body: SizedBox.expand(
+        child: _isInitialized && _controller.value.isInitialized
+            ? FittedBox(
                 fit: BoxFit.cover,
+                alignment: Alignment.center,
+                clipBehavior: Clip.hardEdge,
                 child: SizedBox(
                   width: _controller.value.size.width,
                   height: _controller.value.size.height,
                   child: VideoPlayer(_controller),
                 ),
-              ),
-            )
-          else
-            // Elegant loading placeholder with ChronoMed branding
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D9488).withOpacity(0.12),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF0D9488).withOpacity(0.3),
-                        width: 1.5,
+              )
+            : Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D9488).withOpacity(0.12),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF0D9488).withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.medication_rounded,
+                        color: Color(0xFF2DD4BF),
+                        size: 36,
                       ),
                     ),
-                    child: const Icon(
-                      Icons.medication_rounded,
-                      color: Color(0xFF2DD4BF),
-                      size: 36,
+                    const SizedBox(height: 18),
+                    const Text(
+                      'ChronoMed',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'ChronoMed',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // 2. Subtle top bar with "Skip" button
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, right: 16),
-                child: TextButton.icon(
-                  onPressed: _navigateToHome,
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.4),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: Colors.white.withOpacity(0.15)),
-                    ),
-                  ),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white70),
-                  label: const Text(
-                    'Skip',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  ],
                 ),
               ),
-            ),
-          ),
-        ],
       ),
     );
   }
