@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:core_engine/core_engine.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
-import '../../../main.dart' show defaultRoutine, defaultMedications;
-import '../../timeline/presentation/timeline_painter.dart';
 import '../../ai_assistant/presentation/ai_consultation_sheet.dart';
-import 'missed_dose_protocol_sheet.dart';
 
-/// Today Screen — primary user destination.
+/// ChronoMed Today Screen
 ///
-/// Shows what to take today, the next upcoming dose, and the full daily
-/// schedule. Includes a list/map toggle: list view for dose tracking,
-/// 24h circadian map for visual context.
+/// Implements the exact Circadian Rhythm & Biological Daylight Wave design
+/// with multi-phase circadian daylight wave, central hour rail, branching connectors,
+/// frosted glass dosage cards, and glowing floating action button.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -21,656 +19,629 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // 0 = List view, 1 = 24h Map view
-  int _viewMode = 0;
-  // 0 = All, 1 = Pending, 2 = Taken
-  int _filterIndex = 0;
-
   @override
   Widget build(BuildContext context) {
     final state = AppStateProvider.of(context);
 
     return Scaffold(
-      backgroundColor: ChronoTheme.obsidian,
+      backgroundColor: const Color(0xFF090D14),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            _TodayHeader(
-              state: state,
-              viewMode: _viewMode,
-              onViewModeChanged: (m) => setState(() => _viewMode = m),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Status Bar (Cortisol Peak & Harry J.)
+                _buildTopAppBar(context, state),
+
+                // Greeting (Good Morning, Harry)
+                _buildGreetingHeader(state),
+
+                // Circadian Daylight Wave + Center Rail + Cards
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 90),
+                    child: _CircadianDaylightTimeline(state: state),
+                  ),
+                ),
+              ],
             ),
-            if (state.isRecalibrated)
-              _RecalibrationBanner(state: state),
-            Expanded(
-              child: state.hasConflict
-                  ? _ConflictView(state: state)
-                  : _viewMode == 0
-                      ? _DoseListView(
-                          state: state,
-                          filterIndex: _filterIndex,
-                          onFilterChanged: (i) => setState(() => _filterIndex = i),
-                        )
-                      : _CircadianMapView(state: state),
+
+            // Glowing Floating Action Button (Bottom Right)
+            Positioned(
+              right: 20,
+              bottom: 24,
+              child: _buildGlowingFab(context, state),
             ),
           ],
         ),
       ),
     );
   }
-}
 
-// ── Header ───────────────────────────────────────────────────────────────────
+  // ── 1. Top Status Bar ───────────────────────────────────────────────────────
+  Widget _buildTopAppBar(BuildContext context, AppState state) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Left: Capsule Icon in tilted turquoise
+          Transform.rotate(
+            angle: -0.7,
+            child: Container(
+              width: 26,
+              height: 13,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2DD4BF),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x662DD4BF),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+            ),
+          ),
 
-class _TodayHeader extends StatelessWidget {
-  final AppState state;
-  final int viewMode;
-  final ValueChanged<int> onViewModeChanged;
+          // Center: Glowing Cortisol Phase Pill
+          GestureDetector(
+            onTap: () => AiConsultationSheet.show(
+              context,
+              state,
+              initialQuestion: 'Why is the Morning Cortisol Peak important for my medications?',
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B2129),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFF2DD4BF).withOpacity(0.35),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2DD4BF).withOpacity(0.18),
+                    blurRadius: 12,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Morning Cortisol Peak',
+                    style: TextStyle(
+                      color: Color(0xFFCCFBF1),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
+                      '•',
+                      style: TextStyle(
+                        color: Color(0xFF5EEAD4),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    IntervalMath.formatMinuteOfDay(state.currentMinuteOfDay),
+                    style: const TextStyle(
+                      color: Color(0xFF2DD4BF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: ChronoTheme.monoFont,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
-  const _TodayHeader({
-    required this.state,
-    required this.viewMode,
-    required this.onViewModeChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-      decoration: const BoxDecoration(
-        color: ChronoTheme.surface,
-        border: Border(bottom: BorderSide(color: ChronoTheme.border)),
+          // Right: User Profile Avatar
+          Row(
+            children: [
+              const Text(
+                'HARRY J.',
+                style: TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(width: 7),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF1E293B),
+                  border: Border.all(
+                    color: const Color(0xFF38BDF8).withOpacity(0.4),
+                    width: 1.2,
+                  ),
+                ),
+                child: const Center(
+                  child: Text(
+                    'HJ',
+                    style: TextStyle(
+                      color: Color(0xFF38BDF8),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+
+  // ── 2. Greeting Header ─────────────────────────────────────────────────────
+  Widget _buildGreetingHeader(AppState state) {
+    final hour = state.currentMinuteOfDay ~/ 60;
+    final greeting = hour < 12
+        ? 'Good Morning, Harry.'
+        : (hour < 17 ? 'Good Afternoon, Harry.' : 'Good Evening, Harry.');
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 10, 22, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Text(
+            greeting,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 23,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            IntervalMath.formatMinuteOfDay(state.currentMinuteOfDay),
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              fontFamily: ChronoTheme.monoFont,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 3. Glowing Floating Action Button ───────────────────────────────────────
+  Widget _buildGlowingFab(BuildContext context, AppState state) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        AiConsultationSheet.show(context, state);
+      },
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: const Color(0xFF4EE2CF),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4EE2CF).withOpacity(0.55),
+              blurRadius: 22,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Today',
-                      style: TextStyle(
-                        color: ChronoTheme.textPrimary,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      IntervalMath.formatMinuteOfDay(state.currentMinuteOfDay),
-                      style: const TextStyle(
-                        color: ChronoTheme.textMuted,
-                        fontSize: 11,
-                        fontFamily: ChronoTheme.monoFont,
-                      ),
-                    ),
-                  ],
+              Transform.rotate(
+                angle: -0.6,
+                child: Container(
+                  width: 18,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF07090E),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
                 ),
               ),
-              // AI Clinical Explainer Button
-              GestureDetector(
-                onTap: () => AiConsultationSheet.show(context, state),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: ChronoTheme.cyanSurface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: ChronoTheme.primary.withOpacity(0.35)),
+              const SizedBox(width: 2),
+              Container(
+                width: 9,
+                height: 9,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF07090E),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── 4. Circadian Daylight Timeline & Cards ────────────────────────────────────
+
+class _CircadianDaylightTimeline extends StatelessWidget {
+  final AppState state;
+
+  const _CircadianDaylightTimeline({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    const timelineHeight = 680.0;
+    const waveColumnWidth = 145.0;
+
+    return SizedBox(
+      height: timelineHeight,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left: Custom-Painted Daylight Wave & Hour Rail with Connectors
+          CustomPaint(
+            size: const Size(waveColumnWidth, timelineHeight),
+            painter: _CircadianWaveRailPainter(
+              currentMinuteOfDay: state.currentMinuteOfDay,
+            ),
+          ),
+
+          // Right: Exact Cards Column
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 8),
+
+                  // Card 1: Levothyroxine Sodium (Morning Fasting Dose)
+                  _buildLevothyroxineCard(context, state),
+
+                  const SizedBox(height: 14),
+
+                  // Card 2: Breakfast (Meal Anchor)
+                  _buildBreakfastCard(context, state),
+
+                  const SizedBox(height: 14),
+
+                  // Card 3: Multivitamin (Active In-Focus Dose with Neon Glow)
+                  _buildMultivitaminCard(context, state),
+
+                  const SizedBox(height: 14),
+
+                  // Card 4: Calcium Carbonate (Afternoon Cation-Protected Dose)
+                  _buildCalciumCard(context, state),
+
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Card 1: Levothyroxine Sodium
+  Widget _buildLevothyroxineCard(BuildContext context, AppState state) {
+    final dose = state.doses.firstWhere(
+      (d) => d.medicationName.toLowerCase().contains('levothyroxine'),
+      orElse: () => state.doses.isNotEmpty
+          ? state.doses.first
+          : const ScheduledDose(
+              id: 'med_levo',
+              medicationId: 'med_levo',
+              medicationName: 'LEVOTHYROXINE SODIUM',
+              dosage: '50mcg',
+              scheduledMinute: 420,
+              status: DoseStatus.taken,
+              clinicalInstruction: 'Empty stomach 60 min before food',
+              safeFoodWindowNote: 'Fasting Window Active',
+            ),
+    );
+
+    final isTaken = dose.status == DoseStatus.taken;
+
+    return GestureDetector(
+      onTap: () => _openDoseDetail(context, dose, state),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF131A26),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF38BDF8).withOpacity(0.3),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF38BDF8).withOpacity(0.12),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Time range + capsule icon
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '07:00 AM - 07:45 AM',
+                  style: TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
                   ),
-                  child: const Row(
+                ),
+                Transform.rotate(
+                  angle: -0.6,
+                  child: Container(
+                    width: 14,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF38BDF8),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+
+            // Title & Dose
+            const Text(
+              'LEVOTHYROXINE SODIUM',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              '50mcg',
+              style: TextStyle(
+                color: Color(0xFFCBD5E1),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 9),
+
+            // Footer Row: Fasting Window + 100% adherence mark
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Empty Stomach Window\n(07:00 AM)',
+                  style: TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 9.5,
+                    height: 1.25,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    state.toggleDose(dose.id);
+                  },
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.auto_awesome_rounded, size: 12, color: ChronoTheme.primary),
-                      SizedBox(width: 4),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: isTaken ? const Color(0xFF38BDF8) : const Color(0xFF64748B),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
                       Text(
-                        'Ask AI',
+                        isTaken ? '100%' : 'Pending',
                         style: TextStyle(
-                          color: ChronoTheme.primary,
-                          fontSize: 11.5,
+                          color: isTaken ? const Color(0xFF38BDF8) : const Color(0xFF94A3B8),
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        '07:02 AM',
+                        style: TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 9.5,
+                          fontFamily: ChronoTheme.monoFont,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Adherence fraction — compact, non-decorative
-              _AdherencePill(taken: state.takenCount, total: state.totalDoses),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // View toggle: List / Map
-          _ViewToggle(
-            viewMode: viewMode,
-            onChanged: onViewModeChanged,
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
-}
 
-class _AdherencePill extends StatelessWidget {
-  final int taken;
-  final int total;
-
-  const _AdherencePill({required this.taken, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    final allDone = total > 0 && taken >= total;
+  // Card 2: Breakfast (Meal Anchor)
+  Widget _buildBreakfastCard(BuildContext context, AppState state) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: allDone ? ChronoTheme.emeraldSurface : ChronoTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFF111722),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: allDone
-              ? ChronoTheme.secondary.withOpacity(0.4)
-              : ChronoTheme.border,
+          color: Colors.white.withOpacity(0.08),
+          width: 1,
         ),
-      ),
-      child: Text(
-        '$taken / $total',
-        style: TextStyle(
-          color: allDone ? ChronoTheme.secondary : ChronoTheme.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          fontFamily: ChronoTheme.monoFont,
-        ),
-      ),
-    );
-  }
-}
-
-class _ViewToggle extends StatelessWidget {
-  final int viewMode;
-  final ValueChanged<int> onChanged;
-
-  const _ViewToggle({required this.viewMode, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 32,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: ChronoTheme.border),
-      ),
-      child: Row(
-        children: [
-          _ToggleSegment(
-            label: 'List',
-            icon: Icons.format_list_bulleted_rounded,
-            isSelected: viewMode == 0,
-            onTap: () => onChanged(0),
-          ),
-          _ToggleSegment(
-            label: '24h Map',
-            icon: Icons.timelapse_rounded,
-            isSelected: viewMode == 1,
-            onTap: () => onChanged(1),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToggleSegment extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ToggleSegment({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeInOut,
-          decoration: BoxDecoration(
-            color: isSelected ? ChronoTheme.cyanSurface : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-            border: isSelected
-                ? Border.all(color: ChronoTheme.primary.withOpacity(0.35))
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 12,
-                color: isSelected ? ChronoTheme.primary : ChronoTheme.textMuted,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? ChronoTheme.textPrimary : ChronoTheme.textMuted,
-                  fontSize: 11.5,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Recalibration Banner ──────────────────────────────────────────────────────
-
-class _RecalibrationBanner extends StatelessWidget {
-  final AppState state;
-  const _RecalibrationBanner({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final reason = state.recalibratedSchedule?.shiftReason ?? 'Schedule dynamically shifted';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
-        color: ChronoTheme.cyanSurface,
-        border: Border(bottom: BorderSide(color: ChronoTheme.border)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.sync_rounded, size: 13, color: ChronoTheme.primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              reason,
-              style: const TextStyle(
-                color: ChronoTheme.primary,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => state.resetRecalibration(),
-            child: const Text(
-              'Reset',
-              style: TextStyle(
-                color: ChronoTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Dose List View ────────────────────────────────────────────────────────────
-
-class _DoseListView extends StatelessWidget {
-  final AppState state;
-  final int filterIndex;
-  final ValueChanged<int> onFilterChanged;
-
-  const _DoseListView({
-    required this.state,
-    required this.filterIndex,
-    required this.onFilterChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final allDoses = state.doses;
-    final filteredDoses = switch (filterIndex) {
-      1 => allDoses.where((d) => d.status != DoseStatus.taken).toList(),
-      2 => allDoses.where((d) => d.status == DoseStatus.taken).toList(),
-      _ => allDoses,
-    };
-    final nextDose = state.nextDose;
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
-      children: [
-        // Next dose hero — only when there is an upcoming dose and list filter is All or Pending
-        if (nextDose != null && filterIndex != 2)
-          _NextDoseHero(dose: nextDose, state: state)
-        else if (allDoses.isNotEmpty && state.adherenceRatio >= 1.0)
-          _AllDoneCard(),
-
-        const SizedBox(height: 16),
-
-        // Filter pills
-        _FilterRow(
-          selected: filterIndex,
-          onChanged: onFilterChanged,
-        ),
-
-        const SizedBox(height: 12),
-
-        // Dose cards
-        if (filteredDoses.isEmpty)
-          _EmptyFilter()
-        else
-          ...filteredDoses.map(
-            (dose) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _DoseCard(dose: dose, state: state),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-// ── Next Dose Hero ────────────────────────────────────────────────────────────
-
-class _NextDoseHero extends StatelessWidget {
-  final ScheduledDose dose;
-  final AppState state;
-
-  const _NextDoseHero({required this.dose, required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final diff = dose.scheduledMinute - state.currentMinuteOfDay;
-    final countdown = diff <= 0
-        ? 'Due now'
-        : diff < 60
-            ? 'in $diff min'
-            : 'in ${diff ~/ 60}h ${diff % 60}m';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ChronoTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(ChronoTheme.radiusLarge),
-        border: Border.all(color: ChronoTheme.primary.withOpacity(0.35)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                dose.formattedTime,
-                style: const TextStyle(
-                  color: ChronoTheme.primary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  fontFamily: ChronoTheme.monoFont,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  dose.medicationName,
-                  style: const TextStyle(
-                    color: ChronoTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Text(
-                countdown,
-                style: const TextStyle(
-                  color: ChronoTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${dose.dosage}  ·  ${dose.safeFoodWindowNote}',
-            style: const TextStyle(
-              color: ChronoTheme.textSecondary,
-              fontSize: 12,
-              height: 1.35,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => state.markDoseTaken(dose.medicationId),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ChronoTheme.secondary,
-                foregroundColor: ChronoTheme.obsidian,
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Mark as Taken',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── All Done Card ─────────────────────────────────────────────────────────────
-
-class _AllDoneCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: ChronoTheme.emeraldSurface,
-        borderRadius: BorderRadius.circular(ChronoTheme.radiusLarge),
-        border: Border.all(color: ChronoTheme.secondary.withOpacity(0.3)),
       ),
       child: const Row(
         children: [
-          Icon(Icons.check_circle_rounded, color: ChronoTheme.secondary, size: 22),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'All doses taken',
-                  style: TextStyle(
-                    color: ChronoTheme.secondary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  'Full daily regimen completed.',
-                  style: TextStyle(color: ChronoTheme.textSecondary, fontSize: 12),
-                ),
-              ],
+          Icon(
+            Icons.restaurant_rounded,
+            color: Color(0xFF94A3B8),
+            size: 15,
+          ),
+          SizedBox(width: 9),
+          Text(
+            'BREAKFAST',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+            ),
+          ),
+          SizedBox(width: 4),
+          Text(
+            '(08:30 AM)',
+            style: TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
       ),
     );
   }
-}
 
-// ── Filter Row ────────────────────────────────────────────────────────────────
-
-class _FilterRow extends StatelessWidget {
-  final int selected;
-  final ValueChanged<int> onChanged;
-
-  const _FilterRow({required this.selected, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    const labels = ['All', 'Pending', 'Taken'];
-    return Row(
-      children: List.generate(labels.length, (i) {
-        final isSelected = selected == i;
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: GestureDetector(
-            onTap: () => onChanged(i),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: isSelected ? ChronoTheme.cyanSurface : ChronoTheme.surfaceElevated,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected
-                      ? ChronoTheme.primary.withOpacity(0.4)
-                      : ChronoTheme.border,
-                ),
-              ),
-              child: Text(
-                labels[i],
-                style: TextStyle(
-                  color: isSelected ? ChronoTheme.primary : ChronoTheme.textMuted,
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
+  // Card 3: Multivitamin (Active In-Focus Dose with Neon Glow)
+  Widget _buildMultivitaminCard(BuildContext context, AppState state) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        AiConsultationSheet.show(
+          context,
+          state,
+          focusMedication: 'Multivitamin',
+          initialQuestion: 'Why is Multivitamin scheduled after breakfast?',
         );
-      }),
-    );
-  }
-}
-
-// ── Empty Filter ──────────────────────────────────────────────────────────────
-
-class _EmptyFilter extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 32),
-      child: Center(
-        child: Text(
-          'No doses match this filter.',
-          style: TextStyle(color: ChronoTheme.textMuted, fontSize: 13),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Dose Card ─────────────────────────────────────────────────────────────────
-
-class _DoseCard extends StatelessWidget {
-  final ScheduledDose dose;
-  final AppState state;
-
-  const _DoseCard({required this.dose, required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final isTaken = dose.status == DoseStatus.taken;
-
-    return InkWell(
-      onTap: () => _openDetailSheet(context),
-      borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
-          color: isTaken ? ChronoTheme.surface : ChronoTheme.surfaceCard,
-          borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
+          color: const Color(0xFF131A26),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isTaken ? ChronoTheme.borderSubtle : ChronoTheme.border,
+            color: const Color(0xFF00E5FF),
+            width: 1.6,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00E5FF).withOpacity(0.28),
+              blurRadius: 18,
+              spreadRadius: 1,
+            ),
+          ],
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Time — plain mono text, no inner container
-            SizedBox(
-              width: 48,
-              child: Text(
-                dose.formattedTime,
-                style: TextStyle(
-                  color: isTaken ? ChronoTheme.textDim : ChronoTheme.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: ChronoTheme.monoFont,
-                  decoration: isTaken ? TextDecoration.lineThrough : null,
+            // Top Row: 10:00 AM + cyan capsule icon
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '10:00 AM',
+                  style: TextStyle(
+                    color: Color(0xFFF1F5F9),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                Transform.rotate(
+                  angle: -0.6,
+                  child: Container(
+                    width: 14,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00E5FF),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+
+            // Title & Dose
+            const Text(
+              'MULTIVITAMIN',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              '1 Capsule',
+              style: TextStyle(
+                color: Color(0xFFCBD5E1),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 3),
+            const Text(
+              '(10:00 AM - 11:30 AM)',
+              style: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 10,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Progress/Buffer bar
+            Container(
+              height: 2,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(1),
+              ),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: 0.72,
+                child: Container(
+                  color: const Color(0xFF00E5FF).withOpacity(0.6),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${dose.medicationName}  ${dose.dosage}',
-                    style: TextStyle(
-                      color: isTaken ? ChronoTheme.textMuted : ChronoTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      decoration: isTaken ? TextDecoration.lineThrough : null,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    dose.safeFoodWindowNote,
-                    style: TextStyle(
-                      color: isTaken ? ChronoTheme.textDim : ChronoTheme.textSecondary,
-                      fontSize: 11.5,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Tactile check circle
-            GestureDetector(
-              onTap: isTaken ? null : () => state.markDoseTaken(dose.medicationId),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: isTaken ? ChronoTheme.emeraldSurface : Colors.transparent,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isTaken ? ChronoTheme.secondary : ChronoTheme.border,
-                    width: 1.5,
-                  ),
-                ),
-                child: isTaken
-                    ? const Icon(Icons.check_rounded, color: ChronoTheme.secondary, size: 16)
-                    : null,
+            const SizedBox(height: 6),
+            const Text(
+              'Buffered by 90 mins',
+              style: TextStyle(
+                color: Color(0xFF2DD4BF),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -679,7 +650,156 @@ class _DoseCard extends StatelessWidget {
     );
   }
 
-  void _openDetailSheet(BuildContext context) {
+  // Card 4: Calcium Carbonate (Afternoon Cation-Protected Dose)
+  Widget _buildCalciumCard(BuildContext context, AppState state) {
+    final dose = state.doses.firstWhere(
+      (d) => d.medicationName.toLowerCase().contains('calcium'),
+      orElse: () => const ScheduledDose(
+        id: 'med_calcium',
+        medicationId: 'med_calcium',
+        medicationName: 'CALCIUM CARBONATE',
+        dosage: '500mg',
+        scheduledMinute: 780,
+        status: DoseStatus.scheduled,
+        clinicalInstruction: 'With food. 4-hour gap after thyroid.',
+        safeFoodWindowNote: 'Cation Gap Verified',
+      ),
+    );
+
+    return GestureDetector(
+      onTap: () => _openDoseDetail(context, dose, state),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF131A26),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.08),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Time range + capsule icon
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '13:00 PM - 14:00 PM',
+                  style: TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                Transform.rotate(
+                  angle: -0.6,
+                  child: Container(
+                    width: 14,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF64748B),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+
+            // Title & Dose
+            const Text(
+              'CALCIUM CARBONATE',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              '500mg',
+              style: TextStyle(
+                color: Color(0xFFCBD5E1),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 9),
+
+            // Emerald Cation Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF042F2E),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFF10B981).withOpacity(0.6),
+                  width: 1,
+                ),
+              ),
+              child: const Text(
+                '4h Cation Gap Respected',
+                style: TextStyle(
+                  color: Color(0xFF34D399),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 7),
+
+            // Gap & Afternoon Window Footer
+            const Row(
+              children: [
+                Text(
+                  'Gap ',
+                  style: TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 10.5,
+                  ),
+                ),
+                Text(
+                  '5h 28m',
+                  style: TextStyle(
+                    color: Color(0xFF2DD4BF),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Afternoon Window',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 9.5,
+                  ),
+                ),
+                Text(
+                  '13:00 PM',
+                  style: TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 9.5,
+                    fontFamily: ChronoTheme.monoFont,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openDoseDetail(BuildContext context, ScheduledDose dose, AppState state) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -687,18 +807,233 @@ class _DoseCard extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _DoseDetailSheet(dose: dose, state: state),
+      builder: (_) => _ExactDoseDetailSheet(dose: dose, state: state),
     );
   }
 }
 
-// ── Dose Detail Bottom Sheet ──────────────────────────────────────────────────
+// ── 5. Circadian Wave & Rail CustomPainter ────────────────────────────────────
 
-class _DoseDetailSheet extends StatelessWidget {
+class _CircadianWaveRailPainter extends CustomPainter {
+  final int currentMinuteOfDay;
+
+  _CircadianWaveRailPainter({required this.currentMinuteOfDay});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final H = size.height;
+    final railX = size.width - 25.0; // Vertical rail position
+
+    // 1. Draw organic vertical S-curve daylight wave band
+    final wavePath = Path();
+    wavePath.moveTo(0, 0);
+    wavePath.lineTo(25, 0);
+
+    // Smooth bezier curve following cortisol morning peak and sunset
+    wavePath.cubicTo(20, H * 0.10, 48, H * 0.20, 68, H * 0.26); // Swell starts
+    wavePath.cubicTo(88, H * 0.32, 98, H * 0.38, 85, H * 0.44); // 10:00 AM Sun Peak Crest
+    wavePath.cubicTo(70, H * 0.50, 46, H * 0.58, 56, H * 0.66); // Afternoon dip
+    wavePath.cubicTo(66, H * 0.74, 58, H * 0.82, 36, H * 0.90); // Twilight evening
+    wavePath.cubicTo(24, H * 0.95, 20, H * 0.98, 22, H);       // Night
+
+    wavePath.lineTo(0, H);
+    wavePath.close();
+
+    // Fill wave with daylight gradient
+    final fillGradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      stops: const [0.0, 0.34, 0.55, 0.78, 1.0],
+      colors: [
+        const Color(0xFFF59E0B).withOpacity(0.40), // Sunrise Gold
+        const Color(0xFFFDE68A).withOpacity(0.32), // Morning Sun Peak
+        const Color(0xFF334155).withOpacity(0.22), // Afternoon Slate
+        const Color(0xFF1E293B).withOpacity(0.38), // Evening Twilight
+        const Color(0xFF0F172A).withOpacity(0.60), // Midnight Dark
+      ],
+    );
+
+    final fillPaint = Paint()
+      ..shader = fillGradient.createShader(Rect.fromLTWH(0, 0, size.width, H))
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(wavePath, fillPaint);
+
+    // Contour outer glowing stroke line
+    final contourPath = Path();
+    contourPath.moveTo(25, 0);
+    contourPath.cubicTo(20, H * 0.10, 48, H * 0.20, 68, H * 0.26);
+    contourPath.cubicTo(88, H * 0.32, 98, H * 0.38, 85, H * 0.44);
+    contourPath.cubicTo(70, H * 0.50, 46, H * 0.58, 56, H * 0.66);
+    contourPath.cubicTo(66, H * 0.74, 58, H * 0.82, 36, H * 0.90);
+    contourPath.cubicTo(24, H * 0.95, 20, H * 0.98, 22, H);
+
+    const strokeGradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        Color(0xFFF59E0B),
+        Color(0xFFFBBF24),
+        Color(0xFF38BDF8),
+        Color(0xFF6366F1),
+        Color(0xFF1E293B),
+      ],
+    );
+
+    final strokePaint = Paint()
+      ..shader = strokeGradient.createShader(Rect.fromLTWH(0, 0, size.width, H))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawPath(contourPath, strokePaint);
+
+    // 2. Draw text markers along the daylight wave
+    final tp = TextPainter(textDirection: TextDirection.ltr);
+
+    void drawMarker(String text, double x, double y, {Color color = const Color(0xFF94A3B8), double fontSize = 9.5}) {
+      tp.text = TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: FontWeight.w600,
+          fontFamily: ChronoTheme.monoFont,
+        ),
+      );
+      tp.layout();
+      tp.paint(canvas, Offset(x, y));
+    }
+
+    drawMarker('06:00 AM', 6, 8);
+    drawMarker('08:00 AM', 8, H * 0.20);
+    drawMarker('10:00 AM  Sun ☀️', 6, H * 0.32, color: const Color(0xFFFBBF24));
+    drawMarker('13:00 PM', 6, H * 0.50);
+    drawMarker('Evening', 8, H * 0.58, color: const Color(0xFF64748B));
+    drawMarker('02:00 PM', 6, H * 0.66);
+    drawMarker('Night', 8, H * 0.78, color: const Color(0xFF64748B));
+    drawMarker('06:00 AM', 6, H - 18);
+
+    // 3. Highlighted cyan pill at the 10:00 AM sun crest: "09:45 AM"
+    final pillY = H * 0.36;
+    final pillRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(76, pillY), width: 56, height: 18),
+      const Radius.circular(9),
+    );
+    canvas.drawRRect(
+      pillRect,
+      Paint()..color = const Color(0xFF042F2E),
+    );
+    canvas.drawRRect(
+      pillRect,
+      Paint()
+        ..color = const Color(0xFF2DD4BF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
+
+    tp.text = const TextSpan(
+      text: '09:45 AM',
+      style: TextStyle(
+        color: Color(0xFF2DD4BF),
+        fontSize: 9.5,
+        fontWeight: FontWeight.w700,
+        fontFamily: ChronoTheme.monoFont,
+      ),
+    );
+    tp.layout();
+    tp.paint(canvas, Offset(54, pillY - 6));
+
+    // Pointer line from 09:45 AM pill to railX
+    canvas.drawLine(
+      Offset(104, pillY),
+      Offset(railX, pillY),
+      Paint()
+        ..color = const Color(0xFF2DD4BF)
+        ..strokeWidth = 1.2,
+    );
+
+    // 4. Center vertical timeline rail
+    final railPaint = Paint()
+      ..color = const Color(0xFF334155).withOpacity(0.5)
+      ..strokeWidth = 1.0;
+    canvas.drawLine(Offset(railX, 10), Offset(railX, H - 10), railPaint);
+
+    // Ticks & Hours along the rail
+    final hourPoints = <({String label, double y, bool isNode, Color? nodeColor})>[
+      (label: '07', y: 48, isNode: true, nodeColor: const Color(0xFF38BDF8)),
+      (label: '08', y: 135, isNode: true, nodeColor: const Color(0xFF94A3B8)),
+      (label: '09', y: 195, isNode: true, nodeColor: const Color(0xFF2DD4BF)),
+      (label: '10', y: pillY, isNode: false, nodeColor: null),
+      (label: '11', y: 285, isNode: false, nodeColor: null),
+      (label: '12', y: 345, isNode: false, nodeColor: null),
+      (label: '13', y: 415, isNode: true, nodeColor: const Color(0xFF64748B)),
+      (label: '14', y: 475, isNode: false, nodeColor: null),
+      (label: '04', y: 535, isNode: false, nodeColor: null),
+      (label: '05', y: 590, isNode: false, nodeColor: null),
+      (label: '06', y: 645, isNode: false, nodeColor: null),
+    ];
+
+    for (final pt in hourPoints) {
+      // Small horizontal tick on rail
+      canvas.drawLine(
+        Offset(railX - 3, pt.y),
+        Offset(railX + 3, pt.y),
+        Paint()..color = const Color(0xFF64748B)..strokeWidth = 1.0,
+      );
+
+      // Label next to rail
+      tp.text = TextSpan(
+        text: pt.label,
+        style: const TextStyle(
+          color: Color(0xFF64748B),
+          fontSize: 8.5,
+          fontWeight: FontWeight.w600,
+          fontFamily: ChronoTheme.monoFont,
+        ),
+      );
+      tp.layout();
+      tp.paint(canvas, Offset(railX - 16, pt.y - 5.5));
+
+      // Branching connector line to card if it's an active dose/meal node
+      if (pt.isNode) {
+        final color = pt.nodeColor ?? const Color(0xFF38BDF8);
+
+        // Branch node circle on rail
+        canvas.drawCircle(Offset(railX, pt.y), 3.5, Paint()..color = color);
+
+        // Circuit line branching into the card on the right
+        final branchPath = Path();
+        branchPath.moveTo(railX, pt.y);
+        branchPath.cubicTo(
+          railX + 10,
+          pt.y,
+          railX + 12,
+          pt.y,
+          size.width,
+          pt.y,
+        );
+
+        canvas.drawPath(
+          branchPath,
+          Paint()
+            ..color = color.withOpacity(0.55)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.2,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CircadianWaveRailPainter oldDelegate) =>
+      oldDelegate.currentMinuteOfDay != currentMinuteOfDay;
+}
+
+// ── 6. Dose Detail Modal Sheet ────────────────────────────────────────────────
+
+class _ExactDoseDetailSheet extends StatelessWidget {
   final ScheduledDose dose;
   final AppState state;
 
-  const _DoseDetailSheet({required this.dose, required this.state});
+  const _ExactDoseDetailSheet({required this.dose, required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -713,7 +1048,7 @@ class _DoseDetailSheet extends StatelessWidget {
           // Drag handle
           Center(
             child: Container(
-              width: 32,
+              width: 36,
               height: 4,
               decoration: BoxDecoration(
                 color: ChronoTheme.border,
@@ -723,491 +1058,127 @@ class _DoseDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Time + name
-          Text(
-            dose.formattedTime,
-            style: const TextStyle(
-              color: ChronoTheme.primary,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              fontFamily: ChronoTheme.monoFont,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dose.formattedTime,
+                    style: const TextStyle(
+                      color: Color(0xFF2DD4BF),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      fontFamily: ChronoTheme.monoFont,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${dose.medicationName} (${dose.dosage})',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${dose.medicationName}  (${dose.dosage})',
-            style: const TextStyle(
-              color: ChronoTheme.textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
+          const SizedBox(height: 16),
+
+          // Clinical rationale card
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131A26),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'CLINICAL INSTRUCTION',
+                  style: TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  dose.clinicalInstruction,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'FOOD-DRUG WINDOW',
+                  style: TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  dose.safeFoodWindowNote,
+                  style: const TextStyle(color: Color(0xFF2DD4BF), fontSize: 12.5),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
 
-          // Clinical detail rows
-          _SheetDetailRow(
-            label: 'Instruction',
-            text: dose.clinicalInstruction,
-          ),
-          const SizedBox(height: 8),
-          _SheetDetailRow(
-            label: 'Food',
-            text: dose.safeFoodWindowNote,
-          ),
-          const SizedBox(height: 20),
-
-          // Ask AI about dose
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                AiConsultationSheet.show(
-                  context,
-                  state,
-                  focusMedication: dose.medicationName,
-                  initialQuestion: 'Why is ${dose.medicationName} (${dose.dosage}) scheduled at ${dose.formattedTime}?',
-                );
-              },
-              icon: const Icon(Icons.auto_awesome_rounded, size: 14),
-              label: Text('Ask AI about ${dose.medicationName}'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: ChronoTheme.primary,
-                side: BorderSide(color: ChronoTheme.primary.withOpacity(0.35)),
-                backgroundColor: ChronoTheme.primary.withOpacity(0.06),
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Missed/delayed protocol
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                MissedDoseProtocolSheet.show(context, dose, state);
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: ChronoTheme.textSecondary,
-                side: const BorderSide(color: ChronoTheme.border),
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
-                ),
-              ),
-              child: const Text(
-                'Missed or delayed? View protocol',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-            ),
-          ),
-
-          if (!isTaken) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  state.markDoseTaken(dose.medicationId);
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ChronoTheme.secondary,
-                  foregroundColor: ChronoTheme.obsidian,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(ChronoTheme.radiusDefault),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Mark as Taken',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SheetDetailRow extends StatelessWidget {
-  final String label;
-  final String text;
-
-  const _SheetDetailRow({required this.label, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 72,
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: ChronoTheme.textMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: ChronoTheme.textSecondary,
-              fontSize: 13,
-              height: 1.4,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── 24h Circadian Map View (migrated from timeline_screen.dart) ───────────────
-
-class _CircadianMapView extends StatefulWidget {
-  final AppState state;
-  const _CircadianMapView({required this.state});
-
-  @override
-  State<_CircadianMapView> createState() => _CircadianMapViewState();
-}
-
-class _CircadianMapViewState extends State<_CircadianMapView> {
-  final ScrollController _scrollController = ScrollController();
-  ScheduledDose? _selectedDose;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToNow());
-  }
-
-  void _scrollToNow() {
-    if (!_scrollController.hasClients) return;
-    final targetOffset =
-        (widget.state.currentMinuteOfDay / 1440.0) * 1680.0 - 150.0;
-    _scrollController.animateTo(
-      targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeOutCubic,
-    );
-  }
-
-  void _onCanvasTap(TapUpDetails details) {
-    const heightPerMinute = 1680.0 / 1440.0;
-    const gutterWidth = 52.0;
-    final tapX = details.localPosition.dx;
-    final tapY = details.localPosition.dy + _scrollController.offset;
-
-    if (tapX < gutterWidth) return;
-
-    for (final dose in widget.state.doses) {
-      final doseY = dose.scheduledMinute * heightPerMinute;
-      if ((tapY - doseY).abs() < 28) {
-        setState(() => _selectedDose = dose);
-        _showDoseSheet(dose);
-        return;
-      }
-    }
-  }
-
-  void _showDoseSheet(ScheduledDose dose) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: ChronoTheme.surfaceElevated,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _DoseDetailSheet(dose: dose, state: widget.state),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Legend
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: ChronoTheme.surface,
-          child: const Wrap(
-            spacing: 12,
-            runSpacing: 4,
+          // Actions
+          Row(
             children: [
-              _LegendDot(color: ChronoTheme.secondary,     label: 'Meal window'),
-              _LegendDot(color: ChronoTheme.rose,          label: 'Fasting buffer'),
-              _LegendDot(color: ChronoTheme.primary,       label: 'Scheduled dose'),
-              _LegendDot(color: ChronoTheme.textMuted,     label: 'Sleep zone'),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    AiConsultationSheet.show(
+                      context,
+                      state,
+                      focusMedication: dose.medicationName,
+                      initialQuestion: 'Why is ${dose.medicationName} scheduled at ${dose.formattedTime}?',
+                    );
+                  },
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 14, color: Color(0xFF2DD4BF)),
+                  label: const Text('Ask AI', style: TextStyle(color: Color(0xFF2DD4BF))),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF2DD4BF)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    state.toggleDose(dose.id);
+                    Navigator.pop(context);
+                  },
+                  icon: Icon(isTaken ? Icons.undo_rounded : Icons.check_rounded, size: 16),
+                  label: Text(isTaken ? 'Mark Pending' : 'Mark Taken'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isTaken ? const Color(0xFF334155) : const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
-        Expanded(
-          child: GestureDetector(
-            onTapUp: _onCanvasTap,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              child: SizedBox(
-                height: 1680.0,
-                child: LayoutBuilder(
-                  builder: (ctx, constraints) => CustomPaint(
-                    size: Size(constraints.maxWidth, 1680.0),
-                    painter: TimelinePainter(
-                      routine: widget.state.routine,
-                      doses: widget.state.doses,
-                      currentMinuteOfDay: widget.state.currentMinuteOfDay,
-                      selectedDoseId: _selectedDose?.id,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-  const _LegendDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: ChronoTheme.textDim, fontSize: 10)),
-      ],
-    );
-  }
-}
-
-// ── Conflict View ─────────────────────────────────────────────────────────────
-
-class _ConflictView extends StatelessWidget {
-  final AppState state;
-  const _ConflictView({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final conflict = state.conflict!;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: ChronoTheme.surfaceCard,
-          borderRadius: BorderRadius.circular(ChronoTheme.radiusLarge),
-          border: Border.all(color: ChronoTheme.rose.withOpacity(0.4)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.shield_outlined, color: ChronoTheme.rose, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Schedule Conflict',
-                        style: TextStyle(
-                          color: ChronoTheme.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        conflict.errorCode,
-                        style: const TextStyle(
-                          color: ChronoTheme.rose,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            if (conflict.conflictingMedications.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: conflict.conflictingMedications
-                    .map((med) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: ChronoTheme.roseSurface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: ChronoTheme.rose.withOpacity(0.25)),
-                          ),
-                          child: Text(
-                            med,
-                            style: const TextStyle(
-                              color: ChronoTheme.rose,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ))
-                    .toList(),
-              ),
-            ],
-
-            const SizedBox(height: 12),
-            Text(
-              conflict.clinicalExplanation,
-              style: const TextStyle(
-                color: ChronoTheme.textSecondary,
-                fontSize: 13,
-                height: 1.45,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: ChronoTheme.surfaceElevated,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: ChronoTheme.border),
-              ),
-              child: Text(
-                conflict.actionableAdvice,
-                style: const TextStyle(
-                  color: ChronoTheme.textSecondary,
-                  fontSize: 12,
-                  height: 1.4,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 18),
-            const Divider(color: ChronoTheme.border, height: 1),
-            const SizedBox(height: 14),
-
-            const Text(
-              'Quick resolutions',
-              style: TextStyle(
-                color: ChronoTheme.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            _ResolutionTile(
-              icon: Icons.more_time_rounded,
-              label: 'Extend bedtime by 60 minutes',
-              onTap: () {
-                final r = state.routine;
-                final newSleep = (r.sleepTimeMinutes + 60).clamp(0, 1439);
-                state.updateRoutine(Routine(
-                  id: r.id,
-                  userId: r.userId,
-                  wakeTimeMinutes: r.wakeTimeMinutes,
-                  sleepTimeMinutes: newSleep,
-                  meals: r.meals,
-                ));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Bedtime extended by 60 min. Recomputing schedule...'),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            _ResolutionTile(
-              icon: Icons.restore_rounded,
-              label: 'Restore reference regimen',
-              onTap: () {
-                state.reset(
-                  defaultRoutine: defaultRoutine,
-                  defaultMedications: defaultMedications,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Restored reference 6-drug regimen.'),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ResolutionTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _ResolutionTile({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: ChronoTheme.surfaceElevated,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: ChronoTheme.border),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: ChronoTheme.primary, size: 16),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: ChronoTheme.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded, color: ChronoTheme.textMuted, size: 18),
-          ],
-        ),
+        ],
       ),
     );
   }

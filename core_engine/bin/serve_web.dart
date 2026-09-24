@@ -372,7 +372,9 @@ void main() async {
       }
 
       // Serve Flutter Web static bundle if present
-      final webDir = Directory('app/build/web');
+      final webDir = Directory('app/build/web').existsSync()
+          ? Directory('app/build/web')
+          : Directory('../app/build/web');
       if (webDir.existsSync()) {
         final filePath = (path == '/' || path == '/index.html' || path.isEmpty) ? '/index.html' : path;
         final cleanPath = filePath.replaceAll(RegExp(r'\.\.+'), '');

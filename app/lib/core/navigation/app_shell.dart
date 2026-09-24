@@ -22,13 +22,15 @@ class _AppShellState extends State<AppShell> {
   static const _screens = [
     DashboardScreen(),
     MedicationsScreen(),
+    _HistoryScreen(),
     SettingsScreen(),
   ];
 
   static const _navItems = [
-    (icon: Icons.today_outlined,      activeIcon: Icons.today_rounded,      label: 'Today'),
-    (icon: Icons.medication_outlined,  activeIcon: Icons.medication_rounded,  label: 'Medications'),
-    (icon: Icons.tune_outlined,        activeIcon: Icons.tune_rounded,        label: 'Settings'),
+    (icon: Icons.calendar_today_outlined, activeIcon: Icons.calendar_today_rounded, label: 'Today'),
+    (icon: Icons.dashboard_outlined,      activeIcon: Icons.dashboard_rounded,      label: 'Dashboard'),
+    (icon: Icons.history_rounded,         activeIcon: Icons.history_rounded,        label: 'History'),
+    (icon: Icons.person_outline_rounded,  activeIcon: Icons.person_rounded,         label: 'Profile'),
   ];
 
   @override
@@ -228,6 +230,190 @@ class _CalmBottomNav extends StatelessWidget {
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+class _HistoryScreen extends StatelessWidget {
+  const _HistoryScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF090D14),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Adherence History',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '7-Day Circadian Consistency & Logging',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF131A26),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStat('98%', 'Adherence Rate', const Color(0xFF2DD4BF)),
+                    _buildStat('7 Days', 'Current Streak', const Color(0xFF38BDF8)),
+                    _buildStat('0', 'Missed Doses', const Color(0xFF34D399)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Recent Logged Doses',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  physics: const BouncingScrollPhysics(),
+                  children: const [
+                    _HistoryItem(
+                      time: '07:02 AM',
+                      name: 'Levothyroxine Sodium',
+                      dose: '50 mcg',
+                      status: 'Taken on empty stomach',
+                      isSuccess: true,
+                    ),
+                    _HistoryItem(
+                      time: 'Yesterday 22:04 PM',
+                      name: 'Atorvastatin',
+                      dose: '20 mg',
+                      status: 'Taken at bedtime',
+                      isSuccess: true,
+                    ),
+                    _HistoryItem(
+                      time: 'Yesterday 13:10 PM',
+                      name: 'Calcium Carbonate',
+                      dose: '500 mg',
+                      status: 'Taken with food (4h gap verified)',
+                      isSuccess: true,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildStat(String value, String label, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            fontFamily: ChronoTheme.monoFont,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10.5),
+        ),
+      ],
+    );
+  }
+}
+
+class _HistoryItem extends StatelessWidget {
+  final String time;
+  final String name;
+  final String dose;
+  final String status;
+  final bool isSuccess;
+
+  const _HistoryItem({
+    required this.time,
+    required this.name,
+    required this.dose,
+    required this.status,
+    required this.isSuccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131A26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: isSuccess ? const Color(0xFF2DD4BF) : Colors.amber,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$name  ($dose)',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  status,
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            time,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 10.5,
+              fontFamily: ChronoTheme.monoFont,
+            ),
+          ),
+        ],
       ),
     );
   }

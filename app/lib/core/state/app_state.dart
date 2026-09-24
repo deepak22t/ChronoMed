@@ -95,6 +95,20 @@ class AppState extends ChangeNotifier {
     markDoseTakenAt(medicationId, _currentMinuteOfDay);
   }
 
+  /// Toggle a dose between taken and scheduled.
+  void toggleDose(String doseOrMedicationId) {
+    final dose = doses.cast<ScheduledDose?>().firstWhere(
+      (d) => d?.medicationId == doseOrMedicationId || d?.id == doseOrMedicationId,
+      orElse: () => null,
+    );
+    if (dose == null) return;
+    if (dose.status == DoseStatus.taken) {
+      resetRecalibration();
+    } else {
+      markDoseTaken(dose.medicationId);
+    }
+  }
+
   /// Mark a dose as taken at an explicit minute of the day and dynamically recalibrate.
   void markDoseTakenAt(String medicationId, int minuteOfDay) {
     if (_scheduleResult is! OptimalSchedule && _scheduleResult is! RecalibratedSchedule) return;
