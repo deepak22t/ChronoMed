@@ -59,6 +59,7 @@ class _AiConsultationSheetState extends State<AiConsultationSheet> {
   final List<_ChatMessage> _messages = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String? _lastFailedQuestion;
 
   @override
   void initState() {
@@ -112,18 +113,32 @@ class _AiConsultationSheetState extends State<AiConsultationSheet> {
       _messages.add(_ChatMessage(role: 'user', text: cleanQ));
       _isLoading = true;
       _errorMessage = null;
+      _lastFailedQuestion = cleanQ;
     });
 
     _scrollToBottom();
+    await _executeAiQuery(cleanQ);
+  }
 
+  Future<void> _retryQuestion(String question) async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    _scrollToBottom();
+    await _executeAiQuery(question);
+  }
+
+  Future<void> _executeAiQuery(String question) async {
     try {
       final history = _messages
-          .take(_messages.length - 1)
+          .where((m) => m.role == 'assistant' || m.text != question)
           .map((m) => {'role': m.role, 'content': m.text})
           .toList();
 
       final reply = await AiService.ask(
-        question: cleanQ,
+        question: question,
         state: widget.state,
         focusMedication: widget.focusMedication,
         chatHistory: history,
@@ -133,6 +148,7 @@ class _AiConsultationSheetState extends State<AiConsultationSheet> {
         setState(() {
           _messages.add(_ChatMessage(role: 'assistant', text: reply));
           _isLoading = false;
+          _lastFailedQuestion = null;
         });
         _scrollToBottom();
       }
@@ -489,7 +505,7 @@ class _AiConsultationSheetState extends State<AiConsultationSheet> {
   Widget _buildErrorCard() {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: ChronoTheme.roseSurface,
         borderRadius: BorderRadius.circular(12),
@@ -512,6 +528,37 @@ class _AiConsultationSheetState extends State<AiConsultationSheet> {
               ),
             ),
           ),
+          if (_lastFailedQuestion != null) ...[
+            const SizedBox(width: 8),
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () {
+                final q = _lastFailedQuestion!;
+                _retryQuestion(q);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: ChronoTheme.rose.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: ChronoTheme.rose.withOpacity(0.4),
+                  ),
+                ),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(
+                    color: ChronoTheme.rose,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

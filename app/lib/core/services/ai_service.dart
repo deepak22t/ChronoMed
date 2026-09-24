@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../state/app_state.dart';
 
@@ -16,12 +17,18 @@ class AiService {
       'c2stb3ItdjEtYmMwNDI3ODU1N2NkNmM0MDA5MmFjYmMyZjI4OGM1NDk3N2M4NGMxMmVjZTdmYjg4YzQ2ZTU5MWU0YmE3ZDRlZQ==',
     ));
   }
+
   static final Uri _endpoint =
       Uri.parse('https://openrouter.ai/api/v1/chat/completions');
 
-  // Primary model requested by user; fallback model if upstream is overloaded
-  static const String primaryModel = 'nvidia/nemotron-3-ultra-550b-a55b:free';
-  static const String fallbackModel = 'meta-llama/llama-3.3-70b-instruct:free';
+  /// Active free models on OpenRouter, prioritized by user preference and speed.
+  /// If the primary model is busy or throttled (429/503), the service automatically
+  /// falls back to the next verified free model.
+  static const List<String> candidateModels = [
+    'nvidia/nemotron-3-ultra-550b-a55b:free',
+    'nvidia/nemotron-3-super-120b-a12b:free',
+    'z-ai/glm-5.2:free',
+  ];
 
   /// Sends a query to the OpenRouter AI with patient regimen grounding context.
   static Future<String> ask({
@@ -44,42 +51,45 @@ class AiService {
     // Append current user question
     messages.add({'role': 'user', 'content': question});
 
-    // Try primary model first, fallback if overloaded
-    try {
-      final reply = await _callApi(primaryModel, messages);
-      return reply;
-    } catch (e) {
+    // Try candidate models in order until one succeeds
+    String? lastError;
+    for (final model in candidateModels) {
       try {
-        final fallbackReply = await _callApi(fallbackModel, messages);
-        return fallbackReply;
-      } catch (fallbackError) {
-        throw Exception(
-          'Unable to reach AI assistant. Please check your internet connection or try again shortly.',
-        );
+        final reply = await _callApi(model, messages);
+        return reply;
+      } catch (e) {
+        lastError = e.toString();
+        debugPrint('ChronoMed AI: $model attempt failed: $e. Trying fallback...');
       }
     }
+
+    throw Exception(
+      'AI assistant is temporarily experiencing high traffic ($lastError). Please tap retry in a moment.',
+    );
   }
 
   static Future<String> _callApi(
     String model,
     List<Map<String, dynamic>> messages,
   ) async {
-    final response = await http.post(
-      _endpoint,
-      headers: {
-        'Authorization': 'Bearer $_apiKey',
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://github.com/deepak22t/ChronoMed',
-        'X-Title': 'ChronoMed',
-      },
-      body: jsonEncode({
-        'model': model,
-        'messages': messages,
-      }),
-    );
+    final response = await http
+        .post(
+          _endpoint,
+          headers: {
+            'Authorization': 'Bearer $_apiKey',
+            'Content-Type': 'application/json',
+            'X-Title': 'ChronoMed',
+          },
+          body: jsonEncode({
+            'model': model,
+            'messages': messages,
+          }),
+        )
+        .timeout(const Duration(seconds: 20));
 
     if (response.statusCode != 200) {
-      throw Exception('API status ${response.statusCode}: ${response.body}');
+      final body = response.body;
+      throw Exception('HTTP ${response.statusCode}: $body');
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
