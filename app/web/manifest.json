@@ -1,11 +1,11 @@
 {
-    "name": "app",
-    "short_name": "app",
+    "name": "ChronoMed",
+    "short_name": "ChronoMed",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#090D14",
+    "theme_color": "#0D9488",
+    "description": "Clinical-Grade Polypharmacy & Medication Scheduling",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

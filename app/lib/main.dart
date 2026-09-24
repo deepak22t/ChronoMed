@@ -3,7 +3,7 @@ import 'package:core_engine/core_engine.dart';
 import 'core/state/app_state.dart';
 import 'core/state/app_state_provider.dart';
 import 'core/theme/chrono_theme.dart';
-import 'core/navigation/app_shell.dart';
+import 'features/splash/presentation/splash_screen.dart';
 
 // ── Default Regimen — public so SettingsScreen can import for reset ──────────
 
@@ -130,7 +130,7 @@ class ChronoMedApp extends StatelessWidget {
       title: 'ChronoMed',
       debugShowCheckedModeBanner: false,
       theme: ChronoTheme.darkTheme,
-      home: const AppShell(),
+      home: const SplashScreen(),
     );
   }
 }

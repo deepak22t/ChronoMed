@@ -15,6 +15,7 @@ dependencies:
   clinical_data:
     path: ../clinical_data
   http: ^1.6.0
+  video_player: ^2.9.5
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +27,4 @@ flutter:
 
   assets:
     - assets/top_50_drugs.json
+    - assets/videos/splash.mp4
