@@ -5,6 +5,7 @@ import '../../../core/state/app_state.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/theme/chrono_theme.dart';
 import '../../ai_assistant/presentation/ai_consultation_sheet.dart';
+import 'widgets/timeline_card_components.dart';
 
 /// ChronoMed Today Screen
 ///
@@ -86,68 +87,94 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
-          // Center: Glowing Cortisol Phase Pill
-          GestureDetector(
-            onTap: () => AiConsultationSheet.show(
-              context,
-              state,
-              initialQuestion: 'Why is the Morning Cortisol Peak important for my medications?',
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0B2129),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: const Color(0xFF2DD4BF).withOpacity(0.35),
-                  width: 1,
+          // Center: Glowing Cortisol Phase Pill with underline glow
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () => AiConsultationSheet.show(
+                  context,
+                  state,
+                  initialQuestion: 'Why is the Morning Cortisol Peak important for my medications?',
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF2DD4BF).withOpacity(0.18),
-                    blurRadius: 12,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    state.cortisolBadge.contains('•')
-                        ? state.cortisolBadge.split('•').first.trim()
-                        : state.cortisolBadge,
-                    style: const TextStyle(
-                      color: Color(0xFFCCFBF1),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B2129),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF2DD4BF).withOpacity(0.35),
+                      width: 1,
                     ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6),
-                    child: Text(
-                      '•',
-                      style: TextStyle(
-                        color: Color(0xFF5EEAD4),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2DD4BF).withOpacity(0.18),
+                        blurRadius: 12,
+                        offset: const Offset(0, 1),
                       ),
-                    ),
+                    ],
                   ),
-                  Text(
-                    IntervalMath.formatMinuteOfDay(state.currentMinuteOfDay),
-                    style: const TextStyle(
-                      color: Color(0xFF2DD4BF),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: ChronoTheme.monoFont,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        state.cortisolBadge.contains('•')
+                            ? state.cortisolBadge.split('•').first.trim()
+                            : state.cortisolBadge,
+                        style: const TextStyle(
+                          color: Color(0xFFCCFBF1),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          '•',
+                          style: TextStyle(
+                            color: Color(0xFF5EEAD4),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        IntervalMath.formatMinuteOfDay(state.currentMinuteOfDay),
+                        style: const TextStyle(
+                          color: Color(0xFF2DD4BF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: ChronoTheme.monoFont,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 3),
+              Container(
+                width: 130,
+                height: 1.5,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      const Color(0xFF2DD4BF).withOpacity(0.7),
+                      Colors.transparent,
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2DD4BF).withOpacity(0.4),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+
 
           // Right: User Profile Avatar
           Row(
@@ -300,8 +327,94 @@ class _CircadianDaylightTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const timelineHeight = 680.0;
+    const timelineHeight = 720.0;
     const waveColumnWidth = 145.0;
+
+    // ── 1. Dynamic Extraction from FastAPI Backend / Solver ──
+    final List<TimelineDoseData> doses;
+    if (state.backendDoses.isNotEmpty) {
+      doses = state.backendDoses.map((j) => TimelineDoseData.fromJson(j)).toList();
+    } else {
+      doses = state.doses.map((d) => TimelineDoseData.fromDose(d)).toList();
+    }
+
+    final List<TimelineMealData> meals;
+    if (state.backendMeals.isNotEmpty) {
+      meals = state.backendMeals.map((j) => TimelineMealData.fromJson(j)).toList();
+    } else {
+      meals = const [
+        TimelineMealData(id: 'meal_1', name: 'BREAKFAST', timeStr: '08:30 AM'),
+      ];
+    }
+
+    // Identify standard primary slots matching reference
+    final fastingDose = doses.firstWhere(
+      (d) => d.variant == TimelineCardVariant.fastingWindow,
+      orElse: () => doses.isNotEmpty
+          ? doses.first
+          : const TimelineDoseData(
+              id: 'dose_levo_0700',
+              medicationId: 'dose_levo_0700',
+              medicationName: 'LEVOTHYROXINE SODIUM',
+              dosage: '50mcg',
+              timeRange: '07:00 AM - 07:45 AM',
+              status: DoseStatus.taken,
+              adherenceTime: '07:02 AM',
+              variant: TimelineCardVariant.fastingWindow,
+              secondaryTime: '(07:00 AM)',
+              clinicalInstruction: 'Empty stomach 60 min before food',
+              safeFoodWindowNote: 'Fasting Window Active',
+            ),
+    );
+
+    final breakfastMeal = meals.isNotEmpty
+        ? meals.first
+        : const TimelineMealData(id: 'meal_1', name: 'BREAKFAST', timeStr: '08:30 AM');
+
+    final activeFocusDose = doses.firstWhere(
+      (d) => d.variant == TimelineCardVariant.inFocusActive,
+      orElse: () => doses.length > 1
+          ? doses[1]
+          : const TimelineDoseData(
+              id: 'dose_multi_1000',
+              medicationId: 'dose_multi_1000',
+              medicationName: 'MULTIVITAMIN',
+              dosage: '1 Capsule',
+              timeRange: '10:00 AM',
+              status: DoseStatus.scheduled,
+              variant: TimelineCardVariant.inFocusActive,
+              secondaryTime: '(10:00 AM - 11:30 AM)',
+              tag: 'Buffered by 90 mins',
+              clinicalInstruction: 'Take after breakfast with water.',
+              safeFoodWindowNote: 'Post-breakfast lipid & antioxidant absorption window.',
+              isActiveFocus: true,
+            ),
+    );
+
+    final cationDose = doses.firstWhere(
+      (d) => d.variant == TimelineCardVariant.cationBuffer,
+      orElse: () => doses.length > 2
+          ? doses[2]
+          : const TimelineDoseData(
+              id: 'dose_calc_1530',
+              medicationId: 'dose_calc_1530',
+              medicationName: 'CALCIUM CARBONATE',
+              dosage: '500mg',
+              timeRange: '13:00 PM - 14:00 PM',
+              status: DoseStatus.scheduled,
+              variant: TimelineCardVariant.cationBuffer,
+              tag: '4h Cation Gap Respected',
+              gapInfo: 'Gap 5h 28m',
+              secondaryTime: '13:00 PM',
+              clinicalInstruction: 'Take in afternoon with food or light snack.',
+              safeFoodWindowNote: 'Maintain strict 4+ hour separation from Levothyroxine.',
+            ),
+    );
+
+    // Any other newly added doses from API
+    final additionalDoses = doses.where(
+      (d) => d.id != fastingDose.id && d.id != activeFocusDose.id && d.id != cationDose.id,
+    ).toList();
 
     return SizedBox(
       height: timelineHeight,
@@ -316,7 +429,7 @@ class _CircadianDaylightTimeline extends StatelessWidget {
             ),
           ),
 
-          // Right: Exact Cards Column
+          // Right: Exact Centralized Reusable Cards Column
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(right: 18),
@@ -325,23 +438,45 @@ class _CircadianDaylightTimeline extends StatelessWidget {
                 children: [
                   const SizedBox(height: 8),
 
-                  // Card 1: Levothyroxine Sodium (Morning Fasting Dose)
-                  _buildLevothyroxineCard(context, state),
+                  // 1. Fasting Morning Card (Levothyroxine)
+                  TimelineDoseCard(
+                    data: fastingDose,
+                    onTap: () => _openDoseDetail(context, fastingDose, state),
+                    onToggleStatus: () => state.toggleDoseBackend(fastingDose.id),
+                  ),
 
                   const SizedBox(height: 14),
 
-                  // Card 2: Breakfast (Meal Anchor)
-                  _buildBreakfastCard(context, state),
+                  // 2. Meal Anchor Card (Breakfast)
+                  TimelineMealCard(meal: breakfastMeal),
 
                   const SizedBox(height: 14),
 
-                  // Card 3: Multivitamin (Active In-Focus Dose with Neon Glow)
-                  _buildMultivitaminCard(context, state),
+                  // 3. Active In-Focus Card (Multivitamin)
+                  TimelineDoseCard(
+                    data: activeFocusDose,
+                    onTap: () => _openDoseDetail(context, activeFocusDose, state),
+                    onToggleStatus: () => state.toggleDoseBackend(activeFocusDose.id),
+                  ),
 
                   const SizedBox(height: 14),
 
-                  // Card 4: Calcium Carbonate (Afternoon Cation-Protected Dose)
-                  _buildCalciumCard(context, state),
+                  // 4. Polyvalent Cation Card (Calcium Carbonate)
+                  TimelineDoseCard(
+                    data: cationDose,
+                    onTap: () => _openDoseDetail(context, cationDose, state),
+                    onToggleStatus: () => state.toggleDoseBackend(cationDose.id),
+                  ),
+
+                  // 5. Any Newly Added Medications Dynamically
+                  for (final addDose in additionalDoses) ...[
+                    const SizedBox(height: 14),
+                    TimelineDoseCard(
+                      data: addDose,
+                      onTap: () => _openDoseDetail(context, addDose, state),
+                      onToggleStatus: () => state.toggleDoseBackend(addDose.id),
+                    ),
+                  ],
 
                   const SizedBox(height: 20),
                 ],
@@ -353,467 +488,11 @@ class _CircadianDaylightTimeline extends StatelessWidget {
     );
   }
 
-  // Card 1: Levothyroxine Sodium
-  Widget _buildLevothyroxineCard(BuildContext context, AppState state) {
-    final dose = state.doses.firstWhere(
-      (d) => d.medicationName.toLowerCase().contains('levothyroxine'),
-      orElse: () => state.doses.isNotEmpty
-          ? state.doses.first
-          : const ScheduledDose(
-              id: 'med_levo',
-              medicationId: 'med_levo',
-              medicationName: 'LEVOTHYROXINE SODIUM',
-              dosage: '50mcg',
-              scheduledMinute: 420,
-              status: DoseStatus.taken,
-              clinicalInstruction: 'Empty stomach 60 min before food',
-              safeFoodWindowNote: 'Fasting Window Active',
-            ),
-    );
 
-    final isTaken = dose.status == DoseStatus.taken;
 
-    return GestureDetector(
-      onTap: () => _openDoseDetail(context, dose, state),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF131A26),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFF38BDF8).withOpacity(0.3),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF38BDF8).withOpacity(0.12),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Time range + capsule icon
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '07:00 AM - 07:45 AM',
-                  style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.1,
-                  ),
-                ),
-                Transform.rotate(
-                  angle: -0.6,
-                  child: Container(
-                    width: 14,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF38BDF8),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
 
-            // Title & Dose
-            const Text(
-              'LEVOTHYROXINE SODIUM',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.2,
-              ),
-            ),
-            const SizedBox(height: 2),
-            const Text(
-              '50mcg',
-              style: TextStyle(
-                color: Color(0xFFCBD5E1),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 9),
 
-            // Footer Row: Fasting Window + 100% adherence mark
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Empty Stomach Window\n(07:00 AM)',
-                  style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 9.5,
-                    height: 1.25,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    state.toggleDoseBackend(dose.id);
-                  },
-
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: isTaken ? const Color(0xFF38BDF8) : const Color(0xFF64748B),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isTaken ? '100%' : 'Pending',
-                        style: TextStyle(
-                          color: isTaken ? const Color(0xFF38BDF8) : const Color(0xFF94A3B8),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        '07:02 AM',
-                        style: TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 9.5,
-                          fontFamily: ChronoTheme.monoFont,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Card 2: Breakfast (Meal Anchor)
-  Widget _buildBreakfastCard(BuildContext context, AppState state) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111722),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.08),
-          width: 1,
-        ),
-      ),
-      child: const Row(
-        children: [
-          Icon(
-            Icons.restaurant_rounded,
-            color: Color(0xFF94A3B8),
-            size: 15,
-          ),
-          SizedBox(width: 9),
-          Text(
-            'BREAKFAST',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.6,
-            ),
-          ),
-          SizedBox(width: 4),
-          Text(
-            '(08:30 AM)',
-            style: TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Card 3: Multivitamin (Active In-Focus Dose with Neon Glow)
-  Widget _buildMultivitaminCard(BuildContext context, AppState state) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        AiConsultationSheet.show(
-          context,
-          state,
-          focusMedication: 'Multivitamin',
-          initialQuestion: 'Why is Multivitamin scheduled after breakfast?',
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF131A26),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFF00E5FF),
-            width: 1.6,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF00E5FF).withOpacity(0.28),
-              blurRadius: 18,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: 10:00 AM + cyan capsule icon
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '10:00 AM',
-                  style: TextStyle(
-                    color: Color(0xFFF1F5F9),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.1,
-                  ),
-                ),
-                Transform.rotate(
-                  angle: -0.6,
-                  child: Container(
-                    width: 14,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00E5FF),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-
-            // Title & Dose
-            const Text(
-              'MULTIVITAMIN',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.3,
-              ),
-            ),
-            const SizedBox(height: 2),
-            const Text(
-              '1 Capsule',
-              style: TextStyle(
-                color: Color(0xFFCBD5E1),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 3),
-            const Text(
-              '(10:00 AM - 11:30 AM)',
-              style: TextStyle(
-                color: Color(0xFF94A3B8),
-                fontSize: 10,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Progress/Buffer bar
-            Container(
-              height: 2,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(1),
-              ),
-              child: FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: 0.72,
-                child: Container(
-                  color: const Color(0xFF00E5FF).withOpacity(0.6),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Buffered by 90 mins',
-              style: TextStyle(
-                color: Color(0xFF2DD4BF),
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Card 4: Calcium Carbonate (Afternoon Cation-Protected Dose)
-  Widget _buildCalciumCard(BuildContext context, AppState state) {
-    final dose = state.doses.firstWhere(
-      (d) => d.medicationName.toLowerCase().contains('calcium'),
-      orElse: () => const ScheduledDose(
-        id: 'med_calcium',
-        medicationId: 'med_calcium',
-        medicationName: 'CALCIUM CARBONATE',
-        dosage: '500mg',
-        scheduledMinute: 780,
-        status: DoseStatus.scheduled,
-        clinicalInstruction: 'With food. 4-hour gap after thyroid.',
-        safeFoodWindowNote: 'Cation Gap Verified',
-      ),
-    );
-
-    return GestureDetector(
-      onTap: () => _openDoseDetail(context, dose, state),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF131A26),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.08),
-            width: 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Time range + capsule icon
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '13:00 PM - 14:00 PM',
-                  style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.1,
-                  ),
-                ),
-                Transform.rotate(
-                  angle: -0.6,
-                  child: Container(
-                    width: 14,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF64748B),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-
-            // Title & Dose
-            const Text(
-              'CALCIUM CARBONATE',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.2,
-              ),
-            ),
-            const SizedBox(height: 2),
-            const Text(
-              '500mg',
-              style: TextStyle(
-                color: Color(0xFFCBD5E1),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 9),
-
-            // Emerald Cation Badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF042F2E),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFF10B981).withOpacity(0.6),
-                  width: 1,
-                ),
-              ),
-              child: const Text(
-                '4h Cation Gap Respected',
-                style: TextStyle(
-                  color: Color(0xFF34D399),
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(height: 7),
-
-            // Gap & Afternoon Window Footer
-            const Row(
-              children: [
-                Text(
-                  'Gap ',
-                  style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 10.5,
-                  ),
-                ),
-                Text(
-                  '5h 28m',
-                  style: TextStyle(
-                    color: Color(0xFF2DD4BF),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Afternoon Window',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 9.5,
-                  ),
-                ),
-                Text(
-                  '13:00 PM',
-                  style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 9.5,
-                    fontFamily: ChronoTheme.monoFont,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _openDoseDetail(BuildContext context, ScheduledDose dose, AppState state) {
+  void _openDoseDetail(BuildContext context, TimelineDoseData dose, AppState state) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -972,43 +651,55 @@ class _CircadianWaveRailPainter extends CustomPainter {
 
     // Ticks & Hours along the rail
     final hourPoints = <({String label, double y, bool isNode, Color? nodeColor})>[
-      (label: '07', y: 48, isNode: true, nodeColor: const Color(0xFF38BDF8)),
-      (label: '08', y: 135, isNode: true, nodeColor: const Color(0xFF94A3B8)),
-      (label: '09', y: 195, isNode: true, nodeColor: const Color(0xFF2DD4BF)),
-      (label: '10', y: pillY, isNode: false, nodeColor: null),
-      (label: '11', y: 285, isNode: false, nodeColor: null),
-      (label: '12', y: 345, isNode: false, nodeColor: null),
-      (label: '13', y: 415, isNode: true, nodeColor: const Color(0xFF64748B)),
-      (label: '14', y: 475, isNode: false, nodeColor: null),
-      (label: '04', y: 535, isNode: false, nodeColor: null),
-      (label: '05', y: 590, isNode: false, nodeColor: null),
-      (label: '06', y: 645, isNode: false, nodeColor: null),
+      (label: '07', y: 62, isNode: true, nodeColor: const Color(0xFF38BDF8)),
+      (label: '08', y: 125, isNode: false, nodeColor: null),
+      (label: '', y: 157, isNode: true, nodeColor: const Color(0xFF64748B)),
+      (label: '09', y: 195, isNode: false, nodeColor: null),
+      (label: '10', y: pillY, isNode: true, nodeColor: const Color(0xFF2DD4BF)),
+      (label: '11', y: 295, isNode: false, nodeColor: null),
+      (label: '12', y: 340, isNode: false, nodeColor: null),
+      (label: '13', y: 385, isNode: true, nodeColor: const Color(0xFF34D399)),
+      (label: '14', y: 440, isNode: false, nodeColor: null),
+      (label: '04', y: 510, isNode: false, nodeColor: null),
+      (label: '05', y: 575, isNode: false, nodeColor: null),
+      (label: '06', y: 640, isNode: false, nodeColor: null),
     ];
 
     for (final pt in hourPoints) {
-      // Small horizontal tick on rail
-      canvas.drawLine(
-        Offset(railX - 3, pt.y),
-        Offset(railX + 3, pt.y),
-        Paint()..color = const Color(0xFF64748B)..strokeWidth = 1.0,
-      );
+      if (pt.label.isNotEmpty) {
+        // Small horizontal tick on rail
+        canvas.drawLine(
+          Offset(railX - 3, pt.y),
+          Offset(railX + 3, pt.y),
+          Paint()..color = const Color(0xFF64748B)..strokeWidth = 1.0,
+        );
 
-      // Label next to rail
-      tp.text = TextSpan(
-        text: pt.label,
-        style: const TextStyle(
-          color: Color(0xFF64748B),
-          fontSize: 8.5,
-          fontWeight: FontWeight.w600,
-          fontFamily: ChronoTheme.monoFont,
-        ),
-      );
-      tp.layout();
-      tp.paint(canvas, Offset(railX - 16, pt.y - 5.5));
+        // Label next to rail
+        tp.text = TextSpan(
+          text: pt.label,
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 8.5,
+            fontWeight: FontWeight.w600,
+            fontFamily: ChronoTheme.monoFont,
+          ),
+        );
+        tp.layout();
+        tp.paint(canvas, Offset(railX - 16, pt.y - 5.5));
+      }
 
       // Branching connector line to card if it's an active dose/meal node
       if (pt.isNode) {
         final color = pt.nodeColor ?? const Color(0xFF38BDF8);
+
+        // Soft radial glow halo for primary morning node (Node 07)
+        if (pt.label == '07') {
+          canvas.drawCircle(
+            Offset(railX, pt.y),
+            9,
+            Paint()..color = const Color(0xFF38BDF8).withOpacity(0.25),
+          );
+        }
 
         // Branch node circle on rail
         canvas.drawCircle(Offset(railX, pt.y), 3.5, Paint()..color = color);
@@ -1044,7 +735,7 @@ class _CircadianWaveRailPainter extends CustomPainter {
 // ── 6. Dose Detail Modal Sheet ────────────────────────────────────────────────
 
 class _ExactDoseDetailSheet extends StatelessWidget {
-  final ScheduledDose dose;
+  final TimelineDoseData dose;
   final AppState state;
 
   const _ExactDoseDetailSheet({required this.dose, required this.state});
