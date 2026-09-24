@@ -308,14 +308,27 @@ class _SettingsHeader extends StatelessWidget {
       child: Row(
         children: [
           const Expanded(
-            child: Text(
-              'Settings',
-              style: TextStyle(
-                color: ChronoTheme.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Settings',
+                  style: TextStyle(
+                    color: ChronoTheme.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Routine & clinical care',
+                  style: TextStyle(
+                    color: ChronoTheme.textSecondary,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ),
           if (isDirty) ...[
