@@ -363,11 +363,50 @@ void main() async {
         }
       }
 
+      if (path == '/studio') {
+        request.response
+          ..headers.contentType = ContentType.html
+          ..write(_buildFullAppHtml())
+          ..close();
+        continue;
+      }
+
+      // Serve Flutter Web static bundle if present
+      final webDir = Directory('app/build/web');
+      if (webDir.existsSync()) {
+        final filePath = (path == '/' || path == '/index.html' || path.isEmpty) ? '/index.html' : path;
+        final cleanPath = filePath.replaceAll(RegExp(r'\.\.+'), '');
+        final file = File('${webDir.path}$cleanPath');
+        if (file.existsSync() && !FileSystemEntity.isDirectorySync(file.path)) {
+          final ext = file.path.split('.').last.toLowerCase();
+          final mime = switch (ext) {
+            'html' => ContentType.html,
+            'js' => ContentType('application', 'javascript', charset: 'utf-8'),
+            'mjs' => ContentType('application', 'javascript', charset: 'utf-8'),
+            'css' => ContentType('text', 'css', charset: 'utf-8'),
+            'json' => ContentType.json,
+            'wasm' => ContentType('application', 'wasm'),
+            'png' => ContentType('image', 'png'),
+            'jpg' || 'jpeg' => ContentType('image', 'jpeg'),
+            'svg' => ContentType('image', 'svg+xml'),
+            'ico' => ContentType('image', 'x-icon'),
+            'otf' || 'ttf' => ContentType('font', 'otf'),
+            'woff' => ContentType('font', 'woff'),
+            'woff2' => ContentType('font', 'woff2'),
+            _ => ContentType.binary,
+          };
+          request.response.headers.contentType = mime;
+          await file.openRead().pipe(request.response);
+          continue;
+        }
+      }
+
       if (path == '/' || path == '/index.html') {
         request.response
           ..headers.contentType = ContentType.html
           ..write(_buildFullAppHtml())
           ..close();
+        continue;
       } else if (path == '/api/state') {
         request.response
           ..headers.contentType = ContentType.json
