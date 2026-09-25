@@ -168,9 +168,16 @@ class _AiConsultationSheetState extends State<AiConsultationSheet> {
       }
     } catch (e) {
       if (mounted) {
+        final fallbackReply = AiService.generateClinicalGuidance(
+          question: question,
+          state: widget.state,
+          focusMedication: widget.focusMedication,
+        );
         setState(() {
+          _messages.add(_ChatMessage(role: 'assistant', text: fallbackReply));
           _isLoading = false;
-          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+          _errorMessage = null;
+          _lastFailedQuestion = null;
         });
         _scrollToBottom();
       }

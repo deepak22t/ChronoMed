@@ -8,11 +8,13 @@ from backend.app.repositories.scheduled_dose_repo import scheduled_dose_repo
 from backend.app.schemas.ai_chat import AIChatResponse
 
 FALLBACK_MODELS = [
+    "inclusionai/ling-3.0-flash-sante:free",
+    "nex-agi/nex-n2.5-mini:free",
+    "dots-studio/dots-3-note-preview:free",
+    "liquid/lfm-2.5-2.6b:free",
+    "nvidia/nemotron-3.5-lightning:free",
     "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "mistralai/mistral-small-3.2-24b-instruct:free",
-    "google/gemma-2-9b-it:free",
-    "qwen/qwen-2.5-coder-32b-instruct:free"
+    "nvidia/nemotron-3-super-120b-a12b:free"
 ]
 
 class AIService:
